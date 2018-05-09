@@ -60,20 +60,7 @@ extension PlaylistViewController: UITableViewDataSource {
     func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
         return true
     }
-    
-    func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCellEditingStyle, forRowAt indexPath: IndexPath) {
-        if editingStyle == .delete {
-            let url = videoFiles[indexPath.row]
-            do {
-                try FileManager.default.removeItem(at: url)
-                videoFiles.remove(at: indexPath.row)
-            } catch {
-                print("Error removing ", url)
-            }
-            tableView.deleteRows(at: [indexPath], with: .automatic)
-        }
-    }
-    
+        
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         let viewController = storyboard?.instantiateViewController(withIdentifier: "player") as! PlayerViewController
         let url = videoFiles[indexPath.row]
@@ -94,6 +81,23 @@ extension PlaylistViewController: UITableViewDelegate {
         let url = videoFiles[indexPath.row]
         cell.setURL(url)
         return cell
+    }
+    
+    func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
+        let removeAction = UIContextualAction(style: .normal, title: "削除") { (action, view, success) in
+            let url = self.videoFiles[indexPath.row]
+            do {
+                try FileManager.default.removeItem(at: url)
+            } catch {
+                print("Error removing ", url)
+            }
+            self.videoFiles.remove(at: indexPath.row)
+            tableView.deleteRows(at: [indexPath], with: .automatic)
+            success(true)
+        }
+        removeAction.image = UIImage(named: "icon_trash")
+        removeAction.backgroundColor = .red
+        return UISwipeActionsConfiguration(actions: [removeAction])
     }
 }
 

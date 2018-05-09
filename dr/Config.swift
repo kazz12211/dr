@@ -15,17 +15,23 @@ struct Constants {
     static let AutoStopEnabledKey = "AutoStopEnabled"
     static let VideoQualityKey = "VideoQuality"
     static let RecordAudioKey = "RecordAudio"
+    static let AutoStartSpeedKey = "AutoStartSpeed"
+    static let VideoFrameRateKey = "FPS"
     static let GSensorStrong = 4.0
     static let GSensorMedium = 2.8
     static let GSensorWeak = 1.8
-    static let AutoStartSpeedKey = "AutoStartSpeed"
     static let DefaultAutoStartSpeed = 10.0
     static let VideoQualityHigh = AVCaptureSession.Preset.hd1920x1080
     static let VideoQualityMedium = AVCaptureSession.Preset.hd1280x720
     static let VideoQualityLow = AVCaptureSession.Preset.vga640x480
+    static let VideoFrameRate25fps = Int32(25)
+    static let VideoFrameRate30fps = Int32(30)
+    static let VideoFrameRate60fps = Int32(60)
 }
 
 class Config: NSObject {
+    
+    static let `default` = Config()
     
     var gsensorSensibility: Double = Constants.GSensorStrong
     var autoStartEnabled: Bool = false
@@ -35,6 +41,8 @@ class Config: NSObject {
     var videoQuality: AVCaptureSession.Preset = Constants.VideoQualityMedium
     var availableVideoQualities: [AVCaptureSession.Preset] = [Constants.VideoQualityHigh, Constants.VideoQualityMedium, Constants.VideoQualityLow]
     var availableGSensorSensibilities:[Double] = [Constants.GSensorStrong, Constants.GSensorMedium, Constants.GSensorWeak]
+    var availableFrameRates: [Int32] = [Constants.VideoFrameRate60fps, Constants.VideoFrameRate30fps, Constants.VideoFrameRate25fps]
+    var frameRate: Int32 = Constants.VideoFrameRate30fps
     
     static let ConfigurationLoaded = Notification.Name("ConfigurationLoaded")
     static let ConfigurationSaved = Notification.Name("ConfigurationSaved")
@@ -49,6 +57,7 @@ class Config: NSObject {
         videoQuality = availableVideoQualities[index]
         index = defaults.integer(forKey: Constants.GSensorSensibilityKey)
         gsensorSensibility = availableGSensorSensibilities[index]
+        frameRate = defaults.int32(forKey: Constants.VideoFrameRateKey, defaultValue: Constants.VideoFrameRate30fps)
         
         NotificationCenter.default.post(name: Config.ConfigurationLoaded, object: self)
     }
@@ -63,6 +72,7 @@ class Config: NSObject {
         defaults.set(index, forKey: Constants.GSensorSensibilityKey)
         index = availableVideoQualities.index(of: videoQuality)
         defaults.set(index, forKey: Constants.VideoQualityKey)
+        defaults.set(frameRate, forKey: Constants.VideoFrameRateKey)
         
         NotificationCenter.default.post(name: Config.ConfigurationSaved, object: self)
     }
@@ -73,6 +83,14 @@ extension UserDefaults {
     func double(forKey: String, defaultValue: Double) -> Double {
         var value = self.double(forKey: forKey)
         if value == 0.0 {
+            value = defaultValue
+        }
+        return value
+    }
+    
+    func int32(forKey: String, defaultValue: Int32) -> Int32 {
+        var value = Int32(self.integer(forKey: forKey))
+        if value == 0 {
             value = defaultValue
         }
         return value

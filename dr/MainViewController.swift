@@ -25,9 +25,11 @@ class MainViewController: UIViewController {
     @IBOutlet weak var locationLabel: UILabel!
     @IBOutlet weak var headerView: UIView!
     @IBOutlet weak var footerView: UIView!
+    @IBOutlet weak var audioStateImage: UIButton!
+    @IBOutlet weak var frameRateLabel: UILabel!
+    @IBOutlet weak var videoQualityLabel: UILabel!
     
     var driveInfo: DriveInfo = DriveInfo()
-    var config: Config = Config()
     var storageMonitoringTimer: Timer!
     var timeTimer: Timer!
     var timestampFormatter: DateFormatter = DateFormatter()
@@ -65,15 +67,19 @@ class MainViewController: UIViewController {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        DispatchQueue.global(qos: .userInitiated).async {
-            self.captureSession.startRunning()
+        if !captureSession.isRunning {
+            DispatchQueue.global(qos: .userInitiated).async {
+                self.captureSession.startRunning()
+            }
         }
     }
     
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
-        DispatchQueue.global(qos: .userInitiated).async {
-            self.captureSession.stopRunning()
+        if captureSession.isRunning {
+            DispatchQueue.global(qos: .userInitiated).async {
+                self.captureSession.stopRunning()
+            }
         }
     }
 
@@ -87,7 +93,7 @@ class MainViewController: UIViewController {
     
     func startRecording() {
         recordingInProgress = true
-        recordButton.setImage(UIImage(named: "icon_pause"), for: .normal)
+        recordButton.setImage(UIImage(named: "icon_stop"), for: .normal)
         let documentPath = NSHomeDirectory() + "/Documents/"
         let date = Date()
         let filePath = documentPath + date.filenameFromDate() + ".mp4"
@@ -108,7 +114,7 @@ extension MainViewController {
     
     private func setupCaptureSession() {
         captureSession = AVCaptureSession()
-        captureSession.sessionPreset = config.videoQuality
+        captureSession.sessionPreset = Config.default.videoQuality
         
         setupCaptureDevice()
     }
@@ -118,8 +124,13 @@ extension MainViewController {
         let devices = discoverSession.devices
         
         videoDevice = devices.first
-        videoDevice.activeVideoMinFrameDuration = CMTime(value: 1, timescale: 30)
-        
+        do {
+            try videoDevice.lockForConfiguration()
+            videoDevice.activeVideoMinFrameDuration = CMTime(value: 1, timescale: Config.default.frameRate)
+            videoDevice.unlockForConfiguration()
+        } catch {
+            
+        }
         do {
             videoInput = try AVCaptureDeviceInput(device: videoDevice)
             if captureSession.canAddInput(videoInput) {
@@ -129,14 +140,31 @@ extension MainViewController {
             print("cannot setup video input device", error)
         }
         
-        if config.recordAudio {
+        if Config.default.recordAudio {
             addAudioDevice()
+        }
+    }
+    
+    private func resetCaptureDevice() {
+        if captureSession.isRunning {
+            DispatchQueue.global(qos: .userInitiated).async {
+                self.captureSession.stopRunning()
+            }
+        }
+        if videoInput != nil {
+            captureSession.removeInput(videoInput)
+        }
+        if audioInput != nil {
+            captureSession.removeInput(audioInput)
+        }
+        setupCaptureDevice()
+        DispatchQueue.global(qos: .userInitiated).async {
+            self.captureSession.startRunning()
         }
     }
     
     private func addAudioDevice() {
         audioDevice = AVCaptureDevice.default(.builtInMicrophone, for: .audio, position: .unspecified)
-        
         do {
             audioInput = try AVCaptureDeviceInput(device: audioDevice)
             if captureSession.canAddInput(audioInput) {
@@ -175,11 +203,12 @@ extension MainViewController {
         videoOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey: Int(kCVPixelFormatType_32BGRA)] as [String : Any]
         videoOutput.alwaysDiscardsLateVideoFrames = true
         videoOutput.setSampleBufferDelegate(self, queue: DispatchQueue.main)
+        captureSession.addOutput(videoOutput)
     }
     
     private func startRecordingVideo(_ url: URL) {
-        let width = config.videoQuality == Constants.VideoQualityHigh ? 1920 : config.videoQuality == Constants.VideoQualityMedium ? 1280 : 640
-        let height = config.videoQuality == Constants.VideoQualityHigh ? 1080 : config.videoQuality == Constants.VideoQualityMedium ? 720 : 480
+        let width = Config.default.videoQuality == Constants.VideoQualityHigh ? 1920 : Config.default.videoQuality == Constants.VideoQualityMedium ? 1280 : 640
+        let height = Config.default.videoQuality == Constants.VideoQualityHigh ? 1080 : Config.default.videoQuality == Constants.VideoQualityMedium ? 720 : 480
         let inputSettings = [AVVideoWidthKey: width, AVVideoHeightKey: height, AVVideoCodecKey: AVVideoCodecType.h264] as [String:Any]
         
         assetInput = AVAssetWriterInput(mediaType: .video, outputSettings: inputSettings)
@@ -201,6 +230,8 @@ extension MainViewController {
     
     private func stopRecordingVideo() {
         if assetWriter != nil {
+            assetInput.markAsFinished()
+            assetWriter.endSession(atSourceTime: CMTimeMake(frameNumber, Config.default.frameRate))
             assetWriter.finishWriting {
                 self.pixelBuffer = nil
             }
@@ -210,11 +241,10 @@ extension MainViewController {
 
 extension MainViewController: AVCaptureVideoDataOutputSampleBufferDelegate {
     
-    func captureOutput(_ output: AVCaptureOutput, didDrop sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
+    func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
         if let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) {
-            if assetInput.isReadyForMoreMediaData {
-                print("recording: \(frameNumber)")
-                pixelBuffer.append(imageBuffer, withPresentationTime: CMTimeMake(frameNumber, 25))
+            if assetInput != nil && assetInput.isReadyForMoreMediaData {
+                pixelBuffer.append(imageBuffer, withPresentationTime: CMTimeMake(frameNumber, Config.default.frameRate))
                 frameNumber += 1
             }
         }
@@ -258,7 +288,7 @@ extension MainViewController: CLLocationManagerDelegate {
             speedLabel.text = "".appendingFormat("%.fkph", driveInfo.speed)
             locationLabel.text = "".appendingFormat("%.4f  %.4f  %.0fm", driveInfo.latitude, driveInfo.longitude,driveInfo.altitude)
             
-            if speed > config.autoStartSpeed && config.autoStartEnabled && !recordingInProgress {
+            if speed > Config.default.autoStartSpeed && Config.default.autoStartEnabled && !recordingInProgress {
                 startRecording()
             }
         }
@@ -279,7 +309,7 @@ extension MainViewController {
                 guard let data = accelerationData else {
                     return
                 }
-                if fabs(data.acceleration.y) > self.config.gsensorSensibility || fabs(data.acceleration.z) > self.config.gsensorSensibility {
+                if fabs(data.acceleration.y) > Config.default.gsensorSensibility || fabs(data.acceleration.z) > Config.default.gsensorSensibility {
                     if !self.recordingInProgress {
                         self.startRecording()
                     }
@@ -309,7 +339,7 @@ extension MainViewController {
     }
     
     @objc private func batteryStateChanged(notification: Notification) {
-        if recordingInProgress && UIDevice.current.batteryState == .unplugged && config.autoStopEnabled{
+        if recordingInProgress && UIDevice.current.batteryState == .unplugged && Config.default.autoStopEnabled{
             stopRecording()
         }
     }
@@ -321,7 +351,7 @@ extension MainViewController {
     private func startConfigurationMonitoring() {
         NotificationCenter.default.addObserver(self, selector: #selector(MainViewController.configurationLoaded(notification:)), name: Config.ConfigurationLoaded, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(MainViewController.configurationSaved(notification:)), name: Config.ConfigurationSaved, object: nil)
-        config.load()
+        Config.default.load()
     }
     
     private func stopConfigurationMonitoring() {
@@ -330,11 +360,30 @@ extension MainViewController {
     }
     
     @objc private func configurationLoaded(notification: Notification) {
-        
+        updateDisplay()
     }
     
     @objc private func configurationSaved(notification: Notification) {
         
+        updateDisplay()
+    }
+    
+    private func updateDisplay() {
+        if Config.default.recordAudio {
+            audioStateImage.setImage(UIImage(named: "icon_audio_on"), for: .normal)
+        } else {
+            audioStateImage.setImage(UIImage(named: "icon_audio_off"), for: .normal)
+        }
+        
+        if Config.default.videoQuality == Constants.VideoQualityHigh {
+            videoQualityLabel.text = "1920x1080"
+        } else if Config.default.videoQuality == Constants.VideoQualityMedium {
+            videoQualityLabel.text = "1280x720"
+        } else {
+            videoQualityLabel.text = "640x480"
+        }
+        
+        frameRateLabel.text = "\(Config.default.frameRate)fps"
     }
 }
 
