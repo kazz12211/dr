@@ -364,7 +364,7 @@ extension MainViewController {
     }
     
     @objc private func configurationSaved(notification: Notification) {
-        
+        resetCaptureDevice()
         updateDisplay()
     }
     
