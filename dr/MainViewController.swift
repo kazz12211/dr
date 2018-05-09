@@ -63,6 +63,8 @@ class MainViewController: UIViewController {
         setupPreviewLayer()
         setupVideoOutput()
         
+        updateState()
+        
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -94,6 +96,7 @@ class MainViewController: UIViewController {
     
     func startRecording() {
         recordingInProgress = true
+        updateState()
         recordButton.setImage(UIImage(named: "icon_stop"), for: .normal)
         let documentPath = NSHomeDirectory() + "/Documents/"
         let date = Date()
@@ -104,8 +107,22 @@ class MainViewController: UIViewController {
     
     func stopRecording() {
         recordingInProgress = false
+        updateState()
         recordButton.setImage(UIImage(named: "icon_record"), for: .normal)
         stopRecordingVideo()
+    }
+    
+    private func updateState() {
+        configButton.isEnabled = !recordingInProgress
+        playlistButton.isEnabled = !recordingInProgress
+        freeStorageLabel.textColor = recordingInProgress ? UIColor.orange : UIColor.white
+        batteryStateLabel.textColor = recordingInProgress ? UIColor.orange : UIColor.white
+        timeLabel.textColor = recordingInProgress ? UIColor.orange : UIColor.white
+        speedLabel.textColor = recordingInProgress ? UIColor.orange : UIColor.white
+        locationLabel.textColor = recordingInProgress ? UIColor.orange : UIColor.white
+        frameRateLabel.textColor = recordingInProgress ? UIColor.orange : UIColor.white
+        videoQualityLabel.textColor = recordingInProgress ? UIColor.orange : UIColor.white
+        audioStateImage.tintColor = recordingInProgress ? UIColor.orange : UIColor.white
     }
 }
 

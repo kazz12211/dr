@@ -73,6 +73,7 @@ class ConfigViewController: UIViewController {
     }
     
     @IBAction func dismiss(_ sender: Any) {
+        contentViewTapped()
         Config.default.save()
         dismiss(animated: true) {
         }
