@@ -179,9 +179,6 @@ extension MainViewController {
             captureSession.removeInput(audioInput)
         }
         setupCaptureDevice()
-        DispatchQueue.global(qos: .userInitiated).async {
-            self.captureSession.startRunning()
-        }
     }
     
     private func addAudioDevice() {

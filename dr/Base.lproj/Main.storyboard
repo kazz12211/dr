@@ -172,6 +172,9 @@
                                             </label>
                                         </subviews>
                                         <color key="backgroundColor" white="0.0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                        <accessibility key="accessibilityConfiguration">
+                                            <accessibilityTraits key="traits" notEnabled="YES"/>
+                                        </accessibility>
                                         <constraints>
                                             <constraint firstItem="dQC-w0-diV" firstAttribute="leading" secondItem="nDD-7h-9Km" secondAttribute="leading" constant="8" id="6mX-nL-fUa"/>
                                             <constraint firstAttribute="height" constant="50" id="EYz-h6-DOe"/>
@@ -250,6 +253,9 @@
                                     </button>
                                 </subviews>
                                 <color key="backgroundColor" white="0.0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                <accessibility key="accessibilityConfiguration">
+                                    <accessibilityTraits key="traits" notEnabled="YES"/>
+                                </accessibility>
                                 <constraints>
                                     <constraint firstAttribute="trailing" secondItem="jQs-U1-Djg" secondAttribute="trailing" constant="8" id="SzC-ab-0f6"/>
                                     <constraint firstItem="jQs-U1-Djg" firstAttribute="top" secondItem="q1A-Th-puk" secondAttribute="top" constant="8" id="TOq-Y4-R75"/>
@@ -495,6 +501,9 @@
                                     </button>
                                 </subviews>
                                 <color key="backgroundColor" white="0.0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                <accessibility key="accessibilityConfiguration">
+                                    <accessibilityTraits key="traits" notEnabled="YES"/>
+                                </accessibility>
                                 <constraints>
                                     <constraint firstItem="Wuc-J3-tct" firstAttribute="top" secondItem="grc-vd-yIx" secondAttribute="top" constant="9" id="hmi-ey-6yc"/>
                                     <constraint firstAttribute="height" constant="50" id="oBu-ud-9xP"/>
