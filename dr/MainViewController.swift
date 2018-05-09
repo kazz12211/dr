@@ -67,6 +67,7 @@ class MainViewController: UIViewController {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        displayBatteryLevel()
         if !captureSession.isRunning {
             DispatchQueue.global(qos: .userInitiated).async {
                 self.captureSession.startRunning()
@@ -335,7 +336,11 @@ extension MainViewController {
     }
     
     @objc private func batteryLevelChanged(notification: Notification) {
-        batteryStateLabel.text = "".appendingFormat("%.0f%", UIDevice.current.batteryLevel)
+        displayBatteryLevel()
+    }
+    
+    private func displayBatteryLevel() {
+        batteryStateLabel.text = "".appendingFormat("%.0f%%", UIDevice.current.batteryLevel * 100)
     }
     
     @objc private func batteryStateChanged(notification: Notification) {
