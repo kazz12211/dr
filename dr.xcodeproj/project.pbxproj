@@ -21,6 +21,7 @@
 		F80479CF20A136B4005512ED /* Config.swift in Sources */ = {isa = PBXBuildFile; fileRef = F80479CE20A136B4005512ED /* Config.swift */; };
 		F80479D120A13E50005512ED /* ConfigViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F80479D020A13E50005512ED /* ConfigViewController.swift */; };
 		F80479D320A13E67005512ED /* PlaylistViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F80479D220A13E67005512ED /* PlaylistViewController.swift */; };
+		F83A6CCD20A40C2A00097F14 /* VideoWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F83A6CCC20A40C2A00097F14 /* VideoWriter.swift */; };
 		F8569D9E20A1E4C6001444AD /* PlayerViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8569D9D20A1E4C6001444AD /* PlayerViewController.swift */; };
 		F8569DA020A1E9CD001444AD /* FilenameUtil.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8569D9F20A1E9CD001444AD /* FilenameUtil.swift */; };
 		F8569DA220A1EFF0001444AD /* PlaylistCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8569DA120A1EFF0001444AD /* PlaylistCell.swift */; };
@@ -45,6 +46,7 @@
 		F80479D220A13E67005512ED /* PlaylistViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistViewController.swift; sourceTree = "<group>"; };
 		F83A6CCA20A3FF7000097F14 /* ja */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ja; path = ja.lproj/Main.strings; sourceTree = "<group>"; };
 		F83A6CCB20A3FF7000097F14 /* ja */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ja; path = ja.lproj/LaunchScreen.strings; sourceTree = "<group>"; };
+		F83A6CCC20A40C2A00097F14 /* VideoWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoWriter.swift; sourceTree = "<group>"; };
 		F8569D9D20A1E4C6001444AD /* PlayerViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerViewController.swift; sourceTree = "<group>"; };
 		F8569D9F20A1E9CD001444AD /* FilenameUtil.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilenameUtil.swift; sourceTree = "<group>"; };
 		F8569DA120A1EFF0001444AD /* PlaylistCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistCell.swift; sourceTree = "<group>"; };
@@ -99,6 +101,7 @@
 				F8569D9D20A1E4C6001444AD /* PlayerViewController.swift */,
 				F8569D9F20A1E9CD001444AD /* FilenameUtil.swift */,
 				F8569DA120A1EFF0001444AD /* PlaylistCell.swift */,
+				F83A6CCC20A40C2A00097F14 /* VideoWriter.swift */,
 			);
 			path = dr;
 			sourceTree = "<group>";
@@ -191,6 +194,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F83A6CCD20A40C2A00097F14 /* VideoWriter.swift in Sources */,
 				F80479CD20A13576005512ED /* DriveInfo.swift in Sources */,
 				F80479CF20A136B4005512ED /* Config.swift in Sources */,
 				F8569DA220A1EFF0001444AD /* PlaylistCell.swift in Sources */,

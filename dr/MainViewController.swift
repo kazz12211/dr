@@ -44,13 +44,8 @@ class MainViewController: UIViewController {
     var audioDevice: AVCaptureDevice!
     var videoInput: AVCaptureDeviceInput!
     var audioInput: AVCaptureDeviceInput!
-    var videoOutput: AVCaptureVideoDataOutput!
-    var audioOutput: AVCaptureAudioDataOutput!
-    var assetWriter: AVAssetWriter!
-    var videoAssetInput: AVAssetWriterInput!
-    var audioAssetInput: AVAssetWriterInput!
-    var pixelBuffer: AVAssetWriterInputPixelBufferAdaptor!
-    var frameNumber: Int64 = 0
+    
+    var videoWriter: VideoWriter!
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -64,8 +59,7 @@ class MainViewController: UIViewController {
         
         setupCaptureSession()
         setupPreviewLayer()
-        setupVideoOutput()
-        setupAudioOutput()
+        setupVideoWriter()
         
         updateState()
         
@@ -100,18 +94,17 @@ class MainViewController: UIViewController {
     
     func startRecording() {
         let documentPath = NSHomeDirectory() + "/Documents/"
-        let date = Date()
-        let filePath = documentPath + date.filenameFromDate() + ".mp4"
+        let filePath = documentPath + Date().filenameFromDate() + ".mp4"
         let fileURL = URL(fileURLWithPath: filePath)
-        if startRecordingVideo(fileURL) {
-            recordingInProgress = true
-            updateState()
+        recordingInProgress = videoWriter.start(fileURL)
+        updateState()
+        if recordingInProgress {
             recordButton.setImage(UIImage(named: "icon_stop"), for: .normal)
         }
     }
     
     func stopRecording() {
-        stopRecordingVideo()
+        videoWriter.stop()
         recordingInProgress = false
         updateState()
         recordButton.setImage(UIImage(named: "icon_record"), for: .normal)
@@ -218,106 +211,12 @@ extension MainViewController {
         previewView.bringSubview(toFront: footerView)
     }
     
-    private func setupVideoOutput() {
-        videoOutput = AVCaptureVideoDataOutput()
-        videoOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey: Int(kCVPixelFormatType_32BGRA)] as [String : Any]
-        videoOutput.alwaysDiscardsLateVideoFrames = true
-        videoOutput.setSampleBufferDelegate(self, queue: DispatchQueue.main)
-        captureSession.addOutput(videoOutput)
+    private func setupVideoWriter() {
+        videoWriter = VideoWriter(session: captureSession)
     }
     
-    private func setupAudioOutput() {
-        if Config.default.recordAudio {
-            audioOutput = AVCaptureAudioDataOutput()
-            audioOutput.setSampleBufferDelegate(self, queue: DispatchQueue.main)
-            captureSession.addOutput(audioOutput)
-        }
-    }
     
-    private func resetOutput() {
-        if videoOutput != nil {
-            videoOutput.setSampleBufferDelegate(nil, queue: DispatchQueue.main)
-            captureSession.removeOutput(videoOutput)
-            videoOutput = nil
-        }
-        if audioOutput != nil {
-            audioOutput.setSampleBufferDelegate(nil, queue: DispatchQueue.main)
-            captureSession.removeOutput(audioOutput)
-            audioOutput = nil
-        }
-        setupVideoOutput()
-        setupAudioOutput()
-    }
-    
-    private func startRecordingVideo(_ url: URL) -> Bool {
-        let width = Config.default.videoQuality == Constants.VideoQualityHigh ? 1920 : Config.default.videoQuality == Constants.VideoQualityMedium ? 1280 : 640
-        let height = Config.default.videoQuality == Constants.VideoQualityHigh ? 1080 : Config.default.videoQuality == Constants.VideoQualityMedium ? 720 : 480
-        let videoInputSettings = [AVVideoWidthKey: width, AVVideoHeightKey: height, AVVideoCodecKey: AVVideoCodecType.h264] as [String:Any]
-        
-        videoAssetInput = AVAssetWriterInput(mediaType: .video, outputSettings: videoInputSettings)
-        pixelBuffer = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: videoAssetInput, sourcePixelBufferAttributes: [kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_32BGRA)])
-
-        frameNumber = 0
-
-        do {
-            try assetWriter = AVAssetWriter(outputURL: url, fileType: .mp4)
-            videoAssetInput.expectsMediaDataInRealTime = true
-            assetWriter.add(videoAssetInput)
-            if Config.default.recordAudio {
-                let audioInputSettings = [AVFormatIDKey: kAudioFormatMPEG4AAC, AVNumberOfChannelsKey: 1, AVSampleRateKey: 48000, AVEncoderBitRateKey: 128000]
-                audioAssetInput = AVAssetWriterInput(mediaType: .audio, outputSettings: audioInputSettings)
-                audioAssetInput.expectsMediaDataInRealTime = true
-                assetWriter.add(audioAssetInput)
-            }
-            assetWriter.startWriting()
-            assetWriter.startSession(atSourceTime: kCMTimeZero)
-            return true
-        } catch {
-            print("could not start video recording ", error)
-            return false
-        }
-    }
-    
-    private func stopRecordingVideo() {
-        if assetWriter != nil {
-            videoAssetInput.markAsFinished()
-            if audioAssetInput != nil {
-                audioAssetInput.markAsFinished()
-            }
-            assetWriter.endSession(atSourceTime: CMTimeMake(frameNumber, Config.default.frameRate))
-            assetWriter.finishWriting {
-                self.pixelBuffer = nil
-                self.videoAssetInput = nil
-                self.audioAssetInput = nil
-            }
-        }
-    }
 }
-
-extension MainViewController: AVCaptureVideoDataOutputSampleBufferDelegate, AVCaptureAudioDataOutputSampleBufferDelegate {
-    
-    func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
-        if !recordingInProgress {
-            return
-        }
-        
-        let isVideo = output is AVCaptureVideoDataOutput
-        
-        if isVideo {
-            if let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) {
-                if videoAssetInput.isReadyForMoreMediaData {
-                    pixelBuffer.append(imageBuffer, withPresentationTime: CMTimeMake(frameNumber, Config.default.frameRate))
-                    frameNumber += 1
-                }
-            }
-        } else {
-            if audioAssetInput.isReadyForMoreMediaData {
-                audioAssetInput.append(sampleBuffer)
-            }
-        }
-    }
-}
-
 
 // GPS関連
 extension MainViewController {
@@ -437,7 +336,7 @@ extension MainViewController {
     
     @objc private func configurationSaved(notification: Notification) {
         resetCaptureDevice()
-        resetOutput()
+        videoWriter.reset()
         updateDisplay()
     }
     
