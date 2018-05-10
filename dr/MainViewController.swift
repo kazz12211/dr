@@ -12,6 +12,7 @@ import CoreLocation
 import CoreAudio
 import CoreMotion
 import AVFoundation
+import MediaPlayer
 
 class MainViewController: UIViewController {
 
@@ -46,7 +47,9 @@ class MainViewController: UIViewController {
     var audioInput: AVCaptureDeviceInput!
     
     var videoWriter: VideoWriter!
-    
+ 
+    var initialVolume = 0.0
+
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -67,6 +70,7 @@ class MainViewController: UIViewController {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        listenVolumeButton()
         displayBatteryLevel()
         if !captureSession.isRunning {
             DispatchQueue.global(qos: .userInitiated).async {
@@ -77,6 +81,7 @@ class MainViewController: UIViewController {
     
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
+        AVAudioSession.sharedInstance().removeObserver(self, forKeyPath: "outputVolume")
         if captureSession.isRunning {
             DispatchQueue.global(qos: .userInitiated).async {
                 self.captureSession.stopRunning()
@@ -122,6 +127,63 @@ class MainViewController: UIViewController {
         videoQualityLabel.textColor = recordingInProgress ? UIColor.orange : UIColor.white
         audioStateImage.tintColor = recordingInProgress ? UIColor.orange : UIColor.white
     }
+    
+}
+
+// ボリュームボタン関連
+
+extension MainViewController {
+    
+    
+    func listenVolumeButton() {
+        let audioSession = AVAudioSession.sharedInstance()
+        do {
+            try audioSession.setActive(true)
+            let vol = audioSession.outputVolume
+            initialVolume = Double(vol.description)!
+            if initialVolume > 0.9 {
+                initialVolume = 0.9
+            } else if initialVolume < 0.1 {
+                initialVolume = 0.1
+            }
+            audioSession.addObserver(self, forKeyPath: "outputVolume", options: .new, context: nil)
+        } catch {
+            print("Could not observer outputVolume ", error)
+        }
+    }
+
+    override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
+        if keyPath == "outputVolume" {
+            let volume = (change?[NSKeyValueChangeKey.newKey] as! NSNumber).floatValue
+            let newVolume = Double(volume)
+            if initialVolume > newVolume {
+                volumeDown()
+                initialVolume = newVolume
+            } else if initialVolume < newVolume {
+                volumeUp()
+                initialVolume = newVolume
+            }
+        }
+    }
+    
+    private func volumeUp() {
+        if !recordingInProgress {
+            startRecording()
+        } else {
+            takePhoto()
+        }
+    }
+    
+    private func volumeDown() {
+        if recordingInProgress {
+            stopRecording()
+        }
+    }
+    
+    private func takePhoto() {
+        print("Taking photo")
+    }
+
 }
 
 // ビデオ関連
@@ -214,7 +276,6 @@ extension MainViewController {
     private func setupVideoWriter() {
         videoWriter = VideoWriter(session: captureSession)
     }
-    
     
 }
 

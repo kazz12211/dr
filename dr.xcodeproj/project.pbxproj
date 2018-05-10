@@ -22,6 +22,7 @@
 		F80479D120A13E50005512ED /* ConfigViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F80479D020A13E50005512ED /* ConfigViewController.swift */; };
 		F80479D320A13E67005512ED /* PlaylistViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F80479D220A13E67005512ED /* PlaylistViewController.swift */; };
 		F83A6CCD20A40C2A00097F14 /* VideoWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F83A6CCC20A40C2A00097F14 /* VideoWriter.swift */; };
+		F83A6CCF20A4111F00097F14 /* MediaPlayer.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F83A6CCE20A4111F00097F14 /* MediaPlayer.framework */; };
 		F8569D9E20A1E4C6001444AD /* PlayerViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8569D9D20A1E4C6001444AD /* PlayerViewController.swift */; };
 		F8569DA020A1E9CD001444AD /* FilenameUtil.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8569D9F20A1E9CD001444AD /* FilenameUtil.swift */; };
 		F8569DA220A1EFF0001444AD /* PlaylistCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8569DA120A1EFF0001444AD /* PlaylistCell.swift */; };
@@ -47,6 +48,7 @@
 		F83A6CCA20A3FF7000097F14 /* ja */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ja; path = ja.lproj/Main.strings; sourceTree = "<group>"; };
 		F83A6CCB20A3FF7000097F14 /* ja */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ja; path = ja.lproj/LaunchScreen.strings; sourceTree = "<group>"; };
 		F83A6CCC20A40C2A00097F14 /* VideoWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoWriter.swift; sourceTree = "<group>"; };
+		F83A6CCE20A4111F00097F14 /* MediaPlayer.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MediaPlayer.framework; path = System/Library/Frameworks/MediaPlayer.framework; sourceTree = SDKROOT; };
 		F8569D9D20A1E4C6001444AD /* PlayerViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerViewController.swift; sourceTree = "<group>"; };
 		F8569D9F20A1E9CD001444AD /* FilenameUtil.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilenameUtil.swift; sourceTree = "<group>"; };
 		F8569DA120A1EFF0001444AD /* PlaylistCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistCell.swift; sourceTree = "<group>"; };
@@ -57,6 +59,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F83A6CCF20A4111F00097F14 /* MediaPlayer.framework in Frameworks */,
 				F80479CB20A132C5005512ED /* CoreVideo.framework in Frameworks */,
 				F80479C920A132B7005512ED /* CoreMotion.framework in Frameworks */,
 				F80479C720A132AB005512ED /* AVFoundation.framework in Frameworks */,
@@ -109,6 +112,7 @@
 		F80479C120A13296005512ED /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				F83A6CCE20A4111F00097F14 /* MediaPlayer.framework */,
 				F80479CA20A132C5005512ED /* CoreVideo.framework */,
 				F80479C820A132B7005512ED /* CoreMotion.framework */,
 				F80479C620A132AB005512ED /* AVFoundation.framework */,
