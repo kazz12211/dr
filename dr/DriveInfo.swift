@@ -10,18 +10,9 @@
 import Foundation
 import CoreLocation
 
-class DriveInfo: NSObject {
-    var speed: CLLocationSpeed!
-    var altitude: CLLocationDistance!
-    var latitude: CLLocationDegrees!
-    var longitude: CLLocationDegrees!
-    
-    override init() {
-        super.init()
-        
-        speed = 0
-        altitude = 0
-        latitude = 0
-        longitude = 0
-    }
+struct DriveInfo {
+    var speed: CLLocationSpeed = 0
+    var altitude: CLLocationDistance = 0
+    var latitude: CLLocationDegrees = 0
+    var longitude: CLLocationDegrees = 0
 }
