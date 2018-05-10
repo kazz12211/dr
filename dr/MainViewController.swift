@@ -351,7 +351,7 @@ extension MainViewController: CLLocationManagerDelegate {
             driveInfo.latitude = location.coordinate.latitude
             driveInfo.longitude = location.coordinate.longitude
             
-            speedLabel.text = "".appendingFormat("%.fkph", driveInfo.speed)
+            speedLabel.text = "".appendingFormat("%.fkm/h", driveInfo.speed)
             locationLabel.text = "".appendingFormat("%.4f  %.4f  %.0fm", driveInfo.latitude, driveInfo.longitude,driveInfo.altitude)
             
             if speed > Config.default.autoStartSpeed && Config.default.autoStartEnabled && !recordingInProgress {

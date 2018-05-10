@@ -1,0 +1,81 @@
+
+/* Class = "UILabel"; text = "100GB"; ObjectID = "03a-8I-wpN"; */
+"03a-8I-wpN.text" = "100GB";
+
+/* Class = "UILabel"; text = "Frame Rate"; ObjectID = "1F9-Ge-lwS"; */
+"1F9-Ge-lwS.text" = "フレームレート";
+
+/* Class = "UILabel"; text = "Auto Stop"; ObjectID = "4dL-PR-rJI"; */
+"4dL-PR-rJI.text" = "自動停止";
+
+/* Class = "UILabel"; text = "time"; ObjectID = "6ip-2q-ai5"; */
+"6ip-2q-ai5.text" = "time";
+
+/* Class = "UILabel"; text = "1920x1080"; ObjectID = "AXl-JQ-6gW"; */
+"AXl-JQ-6gW.text" = "1920x1080";
+
+/* Class = "UISegmentedControl"; AgJ-q0-imQ.segmentTitles[0] = "1080p"; ObjectID = "AgJ-q0-imQ"; */
+"AgJ-q0-imQ.segmentTitles[0]" = "1080p";
+
+/* Class = "UISegmentedControl"; AgJ-q0-imQ.segmentTitles[1] = "720p"; ObjectID = "AgJ-q0-imQ"; */
+"AgJ-q0-imQ.segmentTitles[1]" = "720p";
+
+/* Class = "UISegmentedControl"; AgJ-q0-imQ.segmentTitles[2] = "480p"; ObjectID = "AgJ-q0-imQ"; */
+"AgJ-q0-imQ.segmentTitles[2]" = "480p";
+
+/* Class = "UILabel"; text = "Auto Start"; ObjectID = "Myj-dj-wMO"; */
+"Myj-dj-wMO.text" = "自動録画";
+
+/* Class = "UILabel"; text = "km/h"; ObjectID = "N5q-a1-Jh6"; */
+"N5q-a1-Jh6.text" = "km/h";
+
+/* Class = "UILabel"; text = "Video Quality"; ObjectID = "Pgy-Ng-Fdo"; */
+"Pgy-Ng-Fdo.text" = "ビデオ品質";
+
+/* Class = "UILabel"; text = "name"; ObjectID = "QXS-WF-mRd"; */
+"QXS-WF-mRd.text" = "name";
+
+/* Class = "UISegmentedControl"; Qqq-1w-9ns.segmentTitles[0] = "60fps"; ObjectID = "Qqq-1w-9ns"; */
+"Qqq-1w-9ns.segmentTitles[0]" = "60fps";
+
+/* Class = "UISegmentedControl"; Qqq-1w-9ns.segmentTitles[1] = "30fps"; ObjectID = "Qqq-1w-9ns"; */
+"Qqq-1w-9ns.segmentTitles[1]" = "30fps";
+
+/* Class = "UISegmentedControl"; Qqq-1w-9ns.segmentTitles[2] = "25fps"; ObjectID = "Qqq-1w-9ns"; */
+"Qqq-1w-9ns.segmentTitles[2]" = "25fps";
+
+/* Class = "UILabel"; text = "Auto Start Speed"; ObjectID = "aos-XY-SHq"; */
+"aos-XY-SHq.text" = "録画開始速度";
+
+/* Class = "UILabel"; text = "50KPH"; ObjectID = "crd-ox-vgY"; */
+"crd-ox-vgY.text" = "50KPH";
+
+/* Class = "UILabel"; text = "2018/05/09 12:00:00"; ObjectID = "dQC-w0-diV"; */
+"dQC-w0-diV.text" = "2018/05/09 12:00:00";
+
+/* Class = "UILabel"; text = "100%"; ObjectID = "gzH-D7-xSZ"; */
+"gzH-D7-xSZ.text" = "100%";
+
+/* Class = "UILabel"; text = "size"; ObjectID = "kY9-pa-Enf"; */
+"kY9-pa-Enf.text" = "size";
+
+/* Class = "UILabel"; text = "Record Audio"; ObjectID = "m5U-RK-plX"; */
+"m5U-RK-plX.text" = "オーディオ録音";
+
+/* Class = "UILabel"; text = "G Sensor"; ObjectID = "mzq-8D-AWh"; */
+"mzq-8D-AWh.text" = "Gセンサー感度";
+
+/* Class = "UILabel"; text = "30fps"; ObjectID = "nxP-pJ-43G"; */
+"nxP-pJ-43G.text" = "30fps";
+
+/* Class = "UILabel"; text = "135.0000/38.0000/200m "; ObjectID = "yAA-I1-nST"; */
+"yAA-I1-nST.text" = "135.0000/38.0000/200m ";
+
+/* Class = "UISegmentedControl"; zS1-Dc-ePN.segmentTitles[0] = "Strong"; ObjectID = "zS1-Dc-ePN"; */
+"zS1-Dc-ePN.segmentTitles[0]" = "強";
+
+/* Class = "UISegmentedControl"; zS1-Dc-ePN.segmentTitles[1] = "Medium"; ObjectID = "zS1-Dc-ePN"; */
+"zS1-Dc-ePN.segmentTitles[1]" = "中";
+
+/* Class = "UISegmentedControl"; zS1-Dc-ePN.segmentTitles[2] = "Weak"; ObjectID = "zS1-Dc-ePN"; */
+"zS1-Dc-ePN.segmentTitles[2]" = "弱";

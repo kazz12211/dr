@@ -48,6 +48,7 @@ iPhone版ドライブレコーダー「ドラカメ」の第２版です。旧�
   - CoreLocation
   - CoreMotion
   - CoreAudio
+  - CoreVideo
   - AVFoundation
 
 ## 製作に関連する読み物
