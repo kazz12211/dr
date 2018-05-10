@@ -4,6 +4,7 @@
 //
 //  Created by Kazuo Tsubaki on 2018/05/08.
 //  Copyright © 2018年 Kazuo Tsubaki. All rights reserved.
+//  MIT License
 //
 
 import UIKit
