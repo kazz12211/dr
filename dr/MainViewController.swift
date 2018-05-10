@@ -99,21 +99,22 @@ class MainViewController: UIViewController {
     }
     
     func startRecording() {
-        recordingInProgress = true
-        updateState()
-        recordButton.setImage(UIImage(named: "icon_stop"), for: .normal)
         let documentPath = NSHomeDirectory() + "/Documents/"
         let date = Date()
         let filePath = documentPath + date.filenameFromDate() + ".mp4"
         let fileURL = URL(fileURLWithPath: filePath)
-        startRecordingVideo(fileURL)
+        if startRecordingVideo(fileURL) {
+            recordingInProgress = true
+            updateState()
+            recordButton.setImage(UIImage(named: "icon_stop"), for: .normal)
+        }
     }
     
     func stopRecording() {
+        stopRecordingVideo()
         recordingInProgress = false
         updateState()
         recordButton.setImage(UIImage(named: "icon_record"), for: .normal)
-        stopRecordingVideo()
     }
     
     private func updateState() {
@@ -248,7 +249,7 @@ extension MainViewController {
         setupAudioOutput()
     }
     
-    private func startRecordingVideo(_ url: URL) {
+    private func startRecordingVideo(_ url: URL) -> Bool {
         let width = Config.default.videoQuality == Constants.VideoQualityHigh ? 1920 : Config.default.videoQuality == Constants.VideoQualityMedium ? 1280 : 640
         let height = Config.default.videoQuality == Constants.VideoQualityHigh ? 1080 : Config.default.videoQuality == Constants.VideoQualityMedium ? 720 : 480
         let videoInputSettings = [AVVideoWidthKey: width, AVVideoHeightKey: height, AVVideoCodecKey: AVVideoCodecType.h264] as [String:Any]
@@ -256,6 +257,7 @@ extension MainViewController {
         videoAssetInput = AVAssetWriterInput(mediaType: .video, outputSettings: videoInputSettings)
         pixelBuffer = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: videoAssetInput, sourcePixelBufferAttributes: [kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_32BGRA)])
 
+        frameNumber = 0
 
         do {
             try assetWriter = AVAssetWriter(outputURL: url, fileType: .mp4)
@@ -267,14 +269,13 @@ extension MainViewController {
                 audioAssetInput.expectsMediaDataInRealTime = true
                 assetWriter.add(audioAssetInput)
             }
+            assetWriter.startWriting()
+            assetWriter.startSession(atSourceTime: kCMTimeZero)
+            return true
         } catch {
-            
+            print("could not start video recording ", error)
+            return false
         }
-        
-        frameNumber = 0
-        
-        assetWriter.startWriting()
-        assetWriter.startSession(atSourceTime: kCMTimeZero)
     }
     
     private func stopRecordingVideo() {
