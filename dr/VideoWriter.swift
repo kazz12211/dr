@@ -55,6 +55,13 @@ class VideoWriter : NSObject {
         videoOutput.alwaysDiscardsLateVideoFrames = true
         videoOutput.setSampleBufferDelegate(self, queue: DispatchQueue.main)
         captureSession.addOutput(videoOutput)
+        
+        // Video安定化設定
+        if let videoConnection: AVCaptureConnection = videoOutput.connection(with: .video) {
+            if videoConnection.isVideoStabilizationSupported {
+                videoConnection.preferredVideoStabilizationMode = .cinematic
+            }
+        }
     }
     
     private func setupAudioOutput() {

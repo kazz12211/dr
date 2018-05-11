@@ -61,6 +61,7 @@ class MainViewController: UIViewController {
         startMotion()
         
         setupCaptureSession()
+        setupCaptureDevice()
         setupPreviewLayer()
         setupVideoWriter()
         
@@ -72,10 +73,9 @@ class MainViewController: UIViewController {
         super.viewWillAppear(animated)
         listenVolumeButton()
         displayBatteryLevel()
+        configureCaptureDevice()
         if !captureSession.isRunning {
-            DispatchQueue.global(qos: .userInitiated).async {
-                self.captureSession.startRunning()
-            }
+            startCaptureSession()
         }
     }
     
@@ -83,9 +83,7 @@ class MainViewController: UIViewController {
         super.viewWillDisappear(animated)
         AVAudioSession.sharedInstance().removeObserver(self, forKeyPath: "outputVolume")
         if captureSession.isRunning {
-            DispatchQueue.global(qos: .userInitiated).async {
-                self.captureSession.stopRunning()
-            }
+            stopCaptureSession()
         }
     }
 
@@ -193,8 +191,6 @@ extension MainViewController {
     private func setupCaptureSession() {
         captureSession = AVCaptureSession()
         captureSession.sessionPreset = Config.default.videoQuality
-        
-        setupCaptureDevice()
     }
     
     private func setupCaptureDevice() {
@@ -202,13 +198,9 @@ extension MainViewController {
         let devices = discoverSession.devices
         
         videoDevice = devices.first
-        do {
-            try videoDevice.lockForConfiguration()
-            videoDevice.activeVideoMinFrameDuration = CMTime(value: 1, timescale: Config.default.frameRate)
-            videoDevice.unlockForConfiguration()
-        } catch {
-            
-        }
+        
+        configureCaptureDevice()
+
         do {
             videoInput = try AVCaptureDeviceInput(device: videoDevice)
             if captureSession.canAddInput(videoInput) {
@@ -223,11 +215,33 @@ extension MainViewController {
         }
     }
     
+    private func configureCaptureDevice() {
+        do {
+            try videoDevice.lockForConfiguration()
+            videoDevice.activeVideoMinFrameDuration = CMTime(value: 1, timescale: Config.default.frameRate)
+            // 暗いところでの明るさブースト
+            if videoDevice.isLowLightBoostEnabled {
+                videoDevice.automaticallyEnablesLowLightBoostWhenAvailable = true
+            }
+            // フォーカス設定
+            // 画面の中心にオートフォーカス
+            if videoDevice.isFocusModeSupported(.locked) && videoDevice.isFocusPointOfInterestSupported {
+                videoDevice.focusPointOfInterest = CGPoint(x: 0.5, y: 0.5)
+                videoDevice.focusMode = .autoFocus
+            }
+            // Video HDRの設定
+            if videoDevice.isVideoHDREnabled {
+                videoDevice.isVideoHDREnabled = true
+            }
+            videoDevice.unlockForConfiguration()
+        } catch {
+            
+        }
+    }
+    
     private func resetCaptureDevice() {
         if captureSession.isRunning {
-            DispatchQueue.global(qos: .userInitiated).async {
-                self.captureSession.stopRunning()
-            }
+            stopCaptureSession()
         }
         if videoInput != nil {
             captureSession.removeInput(videoInput)
@@ -277,6 +291,17 @@ extension MainViewController {
         videoWriter = VideoWriter(session: captureSession)
     }
     
+    private func startCaptureSession() {
+        DispatchQueue.global(qos: .userInitiated).async {
+            self.captureSession.startRunning()
+        }
+    }
+    
+    private func stopCaptureSession() {
+        DispatchQueue.global(qos: .userInitiated).async {
+            self.captureSession.stopRunning()
+        }
+    }
 }
 
 // GPS関連
