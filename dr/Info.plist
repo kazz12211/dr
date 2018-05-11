@@ -28,6 +28,8 @@
 	<string>DR</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>DR</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>DR</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>

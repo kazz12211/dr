@@ -9,11 +9,13 @@
 
 import UIKit
 import AVFoundation
+import Photos
 
 class VideoWriter : NSObject {
     
     var videoOutput: AVCaptureVideoDataOutput!
     var audioOutput: AVCaptureAudioDataOutput!
+    var imageOutput: AVCapturePhotoOutput!
     var assetWriter: AVAssetWriter!
     var videoAssetInput: AVAssetWriterInput!
     var audioAssetInput: AVAssetWriterInput!
@@ -32,6 +34,7 @@ class VideoWriter : NSObject {
         
         setupVideoOutput()
         setupAudioOutput()
+        setupImageOutput()
     }
     
     func reset() {
@@ -46,8 +49,13 @@ class VideoWriter : NSObject {
             captureSession.removeOutput(audioOutput)
             audioOutput = nil
         }
+        if imageOutput != nil {
+            captureSession.removeOutput(imageOutput)
+            imageOutput = nil
+        }
         setupVideoOutput()
         setupAudioOutput()
+        setupImageOutput()
     }
     
     private func setupVideoOutput() {
@@ -74,6 +82,14 @@ class VideoWriter : NSObject {
             //audioOutput.setSampleBufferDelegate(self, queue: DispatchQueue.main)
             audioOutput.setSampleBufferDelegate(self, queue: queue)
             captureSession.addOutput(audioOutput)
+        }
+    }
+    
+    private func setupImageOutput() {
+        imageOutput = AVCapturePhotoOutput()
+        captureSession.addOutput(imageOutput)
+        if let photoConnection = imageOutput.connection(with: .video) {
+            photoConnection.videoOrientation = .landscapeRight
         }
     }
     
@@ -176,6 +192,16 @@ class VideoWriter : NSObject {
         let image = uiImageFromSampleBuffer(buffer: buffer)
         return pixelBufferFromUIImage(image: image)
     }
+    
+    func takeStillImage() {
+        let capturePhotoSettings = AVCapturePhotoSettings.init(format: [AVVideoCodecKey: AVVideoCodecType.jpeg])
+        capturePhotoSettings.flashMode = .off
+        capturePhotoSettings.isHighResolutionPhotoEnabled = false
+        if imageOutput.isStillImageStabilizationSupported {
+            capturePhotoSettings.isAutoStillImageStabilizationEnabled = true
+        }
+        imageOutput.capturePhoto(with: capturePhotoSettings, delegate: self)
+    }
 }
 
 extension VideoWriter : AVCaptureVideoDataOutputSampleBufferDelegate, AVCaptureAudioDataOutputSampleBufferDelegate {
@@ -214,3 +240,18 @@ extension VideoWriter : AVCaptureVideoDataOutputSampleBufferDelegate, AVCaptureA
     }
 }
 
+extension VideoWriter : AVCapturePhotoCaptureDelegate {
+    
+    func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
+        PHPhotoLibrary.shared().performChanges({
+            let creationRequest = PHAssetCreationRequest.forAsset()
+            creationRequest.addResource(with: .photo, data: photo.fileDataRepresentation()!, options: nil)
+        }) { (success, error) in
+            if success {
+                print("Photo saved")
+            } else {
+                print("Could not save photo: ", error)
+            }
+        }
+    }
+}

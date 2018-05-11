@@ -13,6 +13,7 @@ import CoreAudio
 import CoreMotion
 import AVFoundation
 import MediaPlayer
+import Photos
 
 class MainViewController: UIViewController {
 
@@ -48,6 +49,8 @@ class MainViewController: UIViewController {
     var videoWriter: VideoWriter!
  
     var initialVolume = 0.0
+    
+    var authorized: Bool = false
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -59,30 +62,41 @@ class MainViewController: UIViewController {
         startGPS()
         startMotion()
         
-        setupCaptureSession()
-        setupCaptureDevice()
-        setupPreviewLayer()
-        setupVideoWriter()
-        
-        updateState()
-        
+        checkCameraAuthorization { (authorized) in
+            if authorized {
+                self.setupCaptureSession()
+                self.setupCaptureDevice()
+                self.setupPreviewLayer()
+                self.checkPhotoLibraryAuthorization({ (authorized) in
+                    if authorized {
+                        self.setupVideoWriter()
+                        self.updateState()
+                        self.authorized = authorized
+                    }
+                })
+            }
+        }
     }
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         listenVolumeButton()
         displayBatteryLevel()
-        configureCaptureDevice()
-        if !captureSession.isRunning {
-            startCaptureSession()
+        if authorized {
+            configureCaptureDevice()
+            if !captureSession.isRunning {
+                startCaptureSession()
+            }
         }
     }
     
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         AVAudioSession.sharedInstance().removeObserver(self, forKeyPath: "outputVolume")
-        if captureSession.isRunning {
-            stopCaptureSession()
+        if authorized {
+            if captureSession.isRunning {
+                stopCaptureSession()
+            }
         }
     }
 
@@ -95,12 +109,16 @@ class MainViewController: UIViewController {
     }
     
     func startRecording() {
-        recordingInProgress = videoWriter.start()
+        if authorized {
+            recordingInProgress = videoWriter.start()
+        }
         updateState()
     }
     
     func stopRecording() {
-        videoWriter.stop()
+        if authorized {
+            videoWriter.stop()
+        }
         recordingInProgress = false
         updateState()
     }
@@ -123,6 +141,51 @@ class MainViewController: UIViewController {
         }
     }
     
+    // from Apple developer site
+    func checkCameraAuthorization(_ completionHandler: @escaping ((_ authorized: Bool) -> Void)) {
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized:
+            //The user has previously granted access to the camera.
+            completionHandler(true)
+            
+        case .notDetermined:
+            // The user has not yet been presented with the option to grant video access so request access.
+            AVCaptureDevice.requestAccess(for: .video, completionHandler: { success in
+                completionHandler(success)
+            })
+            
+        case .denied:
+            // The user has previously denied access.
+            completionHandler(false)
+            
+        case .restricted:
+            // The user doesn't have the authority to request access e.g. parental restriction.
+            completionHandler(false)
+        }
+    }
+    
+    // from Apple developer site
+    func checkPhotoLibraryAuthorization(_ completionHandler: @escaping ((_ authorized: Bool) -> Void)) {
+        switch PHPhotoLibrary.authorizationStatus() {
+        case .authorized:
+            // The user has previously granted access to the photo library.
+            completionHandler(true)
+            
+        case .notDetermined:
+            // The user has not yet been presented with the option to grant photo library access so request access.
+            PHPhotoLibrary.requestAuthorization({ status in
+                completionHandler((status == .authorized))
+            })
+            
+        case .denied:
+            // The user has previously denied access.
+            completionHandler(false)
+            
+        case .restricted:
+            // The user doesn't have the authority to request access e.g. parental restriction.
+            completionHandler(false)
+        }
+    }
 }
 
 // ボリュームボタン関連
@@ -177,6 +240,7 @@ extension MainViewController {
     
     private func takePhoto() {
         print("Taking photo")
+        videoWriter.takeStillImage()
     }
 
 }
