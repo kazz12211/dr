@@ -72,7 +72,11 @@ class VideoWriter : NSObject {
         }
     }
     
-    func start(_ url: URL) -> Bool {
+    func start() -> Bool {
+        let documentPath = NSHomeDirectory() + "/Documents/"
+        let filePath = documentPath + Date().filenameFromDate() + ".mp4"
+        let url = URL(fileURLWithPath: filePath)
+
         let width = config.videoQuality == Constants.VideoQualityHigh ? 1920 : config.videoQuality == Constants.VideoQualityMedium ? 1280 : 640
         let height = config.videoQuality == Constants.VideoQualityHigh ? 1080 : config.videoQuality == Constants.VideoQualityMedium ? 720 : 480
         let videoInputSettings = [AVVideoWidthKey: width, AVVideoHeightKey: height, AVVideoCodecKey: AVVideoCodecType.h264] as [String:Any]

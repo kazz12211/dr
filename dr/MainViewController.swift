@@ -96,10 +96,7 @@ class MainViewController: UIViewController {
     }
     
     func startRecording() {
-        let documentPath = NSHomeDirectory() + "/Documents/"
-        let filePath = documentPath + Date().filenameFromDate() + ".mp4"
-        let fileURL = URL(fileURLWithPath: filePath)
-        recordingInProgress = videoWriter.start(fileURL)
+        recordingInProgress = videoWriter.start()
         updateState()
         if recordingInProgress {
             recordButton.setImage(UIImage(named: "icon_stop"), for: .normal)
