@@ -10,9 +10,11 @@
 import Foundation
 import CoreLocation
 
-struct DriveInfo {
+class DriveInfo : NSObject {
     var speed: CLLocationSpeed = 0
     var altitude: CLLocationDistance = 0
     var latitude: CLLocationDegrees = 0
     var longitude: CLLocationDegrees = 0
+    
+    static let singleton = DriveInfo()
 }

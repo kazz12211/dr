@@ -60,15 +60,15 @@ class PlaylistCell : UITableViewCell {
     private func sizeFromURL(_ url: URL) -> String {
         let kb = fileSizeFromURL(url).int64Value;
         if kb < 1024 {
-            return "".appendingFormat("\(kb) KB")
+            return "".appendingFormat("\(kb)KB")
         }
         if kb < (1024 * 1024) {
             let mb = kb / 1024
-            return "".appendingFormat("\(mb) MB")
+            return "".appendingFormat("\(mb)MB")
         }
         let mb = (kb / 1024) % 1024
         let gb = kb / (1024 * 1024)
-        return "".appendingFormat("\(gb).\(mb) GB")
+        return "".appendingFormat("\(gb).\(mb)GB")
     }
     
     private func fileSizeFromURL(_ url: URL) -> NSNumber {

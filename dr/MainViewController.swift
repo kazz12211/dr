@@ -31,7 +31,6 @@ class MainViewController: UIViewController {
     @IBOutlet weak var frameRateLabel: UILabel!
     @IBOutlet weak var videoQualityLabel: UILabel!
     
-    var driveInfo: DriveInfo = DriveInfo()
     var storageMonitoringTimer: Timer!
     var timeTimer: Timer!
     var timestampFormatter: DateFormatter = DateFormatter()
@@ -98,16 +97,12 @@ class MainViewController: UIViewController {
     func startRecording() {
         recordingInProgress = videoWriter.start()
         updateState()
-        if recordingInProgress {
-            recordButton.setImage(UIImage(named: "icon_stop"), for: .normal)
-        }
     }
     
     func stopRecording() {
         videoWriter.stop()
         recordingInProgress = false
         updateState()
-        recordButton.setImage(UIImage(named: "icon_record"), for: .normal)
     }
     
     private func updateState() {
@@ -121,6 +116,11 @@ class MainViewController: UIViewController {
         frameRateLabel.textColor = recordingInProgress ? UIColor.orange : UIColor.white
         videoQualityLabel.textColor = recordingInProgress ? UIColor.orange : UIColor.white
         audioStateImage.tintColor = recordingInProgress ? UIColor.orange : UIColor.white
+        if recordingInProgress {
+            recordButton.setImage(UIImage(named: "icon_stop"), for: .normal)
+        } else {
+            recordButton.setImage(UIImage(named: "icon_record"), for: .normal)
+        }
     }
     
 }
@@ -191,21 +191,7 @@ extension MainViewController {
     }
     
     private func setupCaptureDevice() {
-        let discoverSession = AVCaptureDevice.DiscoverySession.init(deviceTypes: [.builtInWideAngleCamera], mediaType: .video, position: .back)
-        let devices = discoverSession.devices
-        
-        videoDevice = devices.first
-        
-        configureCaptureDevice()
-
-        do {
-            videoInput = try AVCaptureDeviceInput(device: videoDevice)
-            if captureSession.canAddInput(videoInput) {
-                captureSession.addInput(videoInput)
-            }
-        } catch {
-            print("cannot setup video input device", error)
-        }
+        addVideoDevice()
         
         if Config.default.recordAudio {
             addAudioDevice()
@@ -240,13 +226,35 @@ extension MainViewController {
         if captureSession.isRunning {
             stopCaptureSession()
         }
+        removeVideoDevice()
+        removeAudioDevice()
+        setupCaptureDevice()
+    }
+    
+    private func addVideoDevice() {
+        let discoverSession = AVCaptureDevice.DiscoverySession.init(deviceTypes: [.builtInWideAngleCamera], mediaType: .video, position: .back)
+        let devices = discoverSession.devices
+        
+        videoDevice = devices.first
+        
+        configureCaptureDevice()
+        
+        do {
+            videoInput = try AVCaptureDeviceInput(device: videoDevice)
+            if captureSession.canAddInput(videoInput) {
+                captureSession.addInput(videoInput)
+            }
+        } catch {
+            print("cannot setup video input device", error)
+        }
+    }
+    
+    private func removeVideoDevice() {
         if videoInput != nil {
             captureSession.removeInput(videoInput)
+            videoInput = nil
+            videoDevice = nil
         }
-        if audioInput != nil {
-            captureSession.removeInput(audioInput)
-        }
-        setupCaptureDevice()
     }
     
     private func addAudioDevice() {
@@ -329,14 +337,14 @@ extension MainViewController: CLLocationManagerDelegate {
             if speed < 0 {
                 speed = 0
             }
-            driveInfo.speed = speed * 3.6
+            DriveInfo.singleton.speed = speed * 3.6
             
-            driveInfo.altitude = location.altitude
-            driveInfo.latitude = location.coordinate.latitude
-            driveInfo.longitude = location.coordinate.longitude
+            DriveInfo.singleton.altitude = location.altitude
+            DriveInfo.singleton.latitude = location.coordinate.latitude
+            DriveInfo.singleton.longitude = location.coordinate.longitude
             
-            speedLabel.text = "".appendingFormat("%.fkm/h", driveInfo.speed)
-            locationLabel.text = "".appendingFormat("%.4f  %.4f  %.0fm", driveInfo.latitude, driveInfo.longitude,driveInfo.altitude)
+            speedLabel.text = "".appendingFormat("%.fkm/h", DriveInfo.singleton.speed)
+            locationLabel.text = "".appendingFormat("%.4f  %.4f  %.0fm", DriveInfo.singleton.latitude, DriveInfo.singleton.longitude, DriveInfo.singleton.altitude)
             
             if speed > Config.default.autoStartSpeed && Config.default.autoStartEnabled && !recordingInProgress {
                 startRecording()
@@ -421,6 +429,9 @@ extension MainViewController {
         resetCaptureDevice()
         videoWriter.reset()
         updateDisplay()
+        if !captureSession.isRunning {
+            startCaptureSession()
+        }
     }
     
     private func updateDisplay() {
@@ -473,9 +484,8 @@ extension MainViewController {
 extension MainViewController {
     
     private func startTimer() {
-        timestampFormatter.dateFormat = "yyyy/MM/dd HH:mm:ss"
         timeTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true, block: { (timer) in
-            self.timeLabel.text = self.timestampFormatter.string(from: Date())
+            self.timeLabel.text = Formatters.default.timestampFormatter.string(from: Date())
         })
     }
     

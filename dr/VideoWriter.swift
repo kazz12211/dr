@@ -7,7 +7,7 @@
 //  MIT License
 //
 
-import Foundation
+import UIKit
 import AVFoundation
 
 class VideoWriter : NSObject {
@@ -22,6 +22,7 @@ class VideoWriter : NSObject {
     var config: Config!
     var captureSession: AVCaptureSession!
     var recordingInProgress: Bool = false
+    var startTime: CMTime!
 
     init(session: AVCaptureSession) {
         super.init()
@@ -53,7 +54,9 @@ class VideoWriter : NSObject {
         videoOutput = AVCaptureVideoDataOutput()
         videoOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey: Int(kCVPixelFormatType_32BGRA)] as [String : Any]
         videoOutput.alwaysDiscardsLateVideoFrames = true
-        videoOutput.setSampleBufferDelegate(self, queue: DispatchQueue.main)
+        let queue = DispatchQueue(label: "VideoQueue")
+        //videoOutput.setSampleBufferDelegate(self, queue: DispatchQueue.main)
+        videoOutput.setSampleBufferDelegate(self, queue: queue)
         captureSession.addOutput(videoOutput)
         
         // Video安定化設定
@@ -67,7 +70,9 @@ class VideoWriter : NSObject {
     private func setupAudioOutput() {
         if config.recordAudio {
             audioOutput = AVCaptureAudioDataOutput()
-            audioOutput.setSampleBufferDelegate(self, queue: DispatchQueue.main)
+            let queue = DispatchQueue(label: "AudioQueue")
+            //audioOutput.setSampleBufferDelegate(self, queue: DispatchQueue.main)
+            audioOutput.setSampleBufferDelegate(self, queue: queue)
             captureSession.addOutput(audioOutput)
         }
     }
@@ -122,24 +127,83 @@ class VideoWriter : NSObject {
         }
     }
 
+    private func uiImageFromSampleBuffer(buffer: CMSampleBuffer) -> UIImage {
+        let imageBuffer = CMSampleBufferGetImageBuffer(buffer)!
+        
+        // イメージバッファのロック
+        CVPixelBufferLockBaseAddress(imageBuffer, CVPixelBufferLockFlags(rawValue: 0))
+        
+        // 画像情報を取得
+        let base = CVPixelBufferGetBaseAddressOfPlane(imageBuffer, 0)!
+        let bytesPerRow = UInt(CVPixelBufferGetBytesPerRow(imageBuffer))
+        let width = UInt(CVPixelBufferGetWidth(imageBuffer))
+        let height = UInt(CVPixelBufferGetHeight(imageBuffer))
+        
+        // ビットマップコンテキスト作成
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let bitsPerCompornent = 8
+        let bitmapInfo = CGBitmapInfo(rawValue: (CGBitmapInfo.byteOrder32Little.rawValue | CGImageAlphaInfo.premultipliedFirst.rawValue) as UInt32)
+        let newContext = CGContext(data: base, width: Int(width), height: Int(height), bitsPerComponent: Int(bitsPerCompornent), bytesPerRow: Int(bytesPerRow), space: colorSpace, bitmapInfo: bitmapInfo.rawValue)! as CGContext
+        
+        // 画像作成
+        let imageRef = newContext.makeImage()!
+        let image = UIImage(cgImage: imageRef, scale: 1.0, orientation: UIImageOrientation.right)
+        
+        // イメージバッファのアンロック
+        CVPixelBufferUnlockBaseAddress(imageBuffer, CVPixelBufferLockFlags(rawValue: 0))
+        return image
+    }
+    
+    private func pixelBufferFromUIImage(image: UIImage) -> CVPixelBuffer {
+        let cgImage = image.cgImage!
+        let options = [kCVPixelBufferCGImageCompatibilityKey as String: true, kCVPixelBufferCGBitmapContextCompatibilityKey as String: true]
+        var pxBuffer: CVPixelBuffer? = nil
+        let width = cgImage.width
+        let height = cgImage.height
+        CVPixelBufferCreate(kCFAllocatorDefault, width, height, kCVPixelFormatType_32ARGB, options as CFDictionary?, &pxBuffer)
+        CVPixelBufferLockBaseAddress(pxBuffer!, CVPixelBufferLockFlags(rawValue: 0))
+        let pxData = CVPixelBufferGetBaseAddress(pxBuffer!)!
+        let bitsPerComponent: size_t = 8
+        let bytePerRow: size_t = 4 * width
+        let rgbColorSpace: CGColorSpace = CGColorSpaceCreateDeviceRGB()
+        let context: CGContext = CGContext(data: pxData, width: width, height: height, bitsPerComponent: bitsPerComponent, bytesPerRow: bytePerRow, space: rgbColorSpace, bitmapInfo: CGImageAlphaInfo.noneSkipFirst.rawValue)!
+        context.draw(cgImage, in: CGRect(x:0, y:0, width: CGFloat(width), height: CGFloat(height)))
+        CVPixelBufferUnlockBaseAddress(pxBuffer!, CVPixelBufferLockFlags(rawValue: 0))
+        return pxBuffer!
+    }
+    
+    private func synthesize(buffer: CMSampleBuffer) -> CVPixelBuffer! {
+        let image = uiImageFromSampleBuffer(buffer: buffer)
+        return pixelBufferFromUIImage(image: image)
+    }
 }
 
 extension VideoWriter : AVCaptureVideoDataOutputSampleBufferDelegate, AVCaptureAudioDataOutputSampleBufferDelegate {
     
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
+        if !CMSampleBufferDataIsReady(sampleBuffer) {
+            return
+        }
+        
         if !recordingInProgress {
             return
+        }
+        
+        if frameNumber == 0 {
+            startTime = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
         }
         
         let isVideo = output is AVCaptureVideoDataOutput
         
         if isVideo {
             if videoAssetInput.isReadyForMoreMediaData {
-                guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
-                    return
-                    
-                }
+                //let timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
+                //let frameTime = CMTimeSubtract(timestamp, startTime)
+                //guard let pxBuffer = synthesize(buffer: sampleBuffer) else { return }
+                guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
                 pixelBuffer.append(imageBuffer, withPresentationTime: CMTimeMake(frameNumber, config.frameRate))
+                //pixelBuffer.append(pxBuffer, withPresentationTime: frameTime)
+                //pixelBuffer.append(pxBuffer, withPresentationTime: CMTimeMake(frameNumber, config.frameRate))
                 frameNumber += 1
             }
         } else {
@@ -149,3 +213,4 @@ extension VideoWriter : AVCaptureVideoDataOutputSampleBufferDelegate, AVCaptureA
         }
     }
 }
+
