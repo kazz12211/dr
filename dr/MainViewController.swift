@@ -402,7 +402,6 @@ extension MainViewController: CLLocationManagerDelegate {
                 speed = 0
             }
             DriveInfo.singleton.speed = speed * 3.6
-            
             DriveInfo.singleton.altitude = location.altitude
             DriveInfo.singleton.latitude = location.coordinate.latitude
             DriveInfo.singleton.longitude = location.coordinate.longitude

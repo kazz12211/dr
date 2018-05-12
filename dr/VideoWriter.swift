@@ -25,6 +25,7 @@ class VideoWriter : NSObject {
     var captureSession: AVCaptureSession!
     var recordingInProgress: Bool = false
     var startTime: CMTime!
+    var endTime: CMTime!
 
     init(session: AVCaptureSession) {
         super.init()
@@ -63,7 +64,6 @@ class VideoWriter : NSObject {
         videoOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey: Int(kCVPixelFormatType_32BGRA)] as [String : Any]
         videoOutput.alwaysDiscardsLateVideoFrames = true
         let queue = DispatchQueue(label: "VideoQueue")
-        //videoOutput.setSampleBufferDelegate(self, queue: DispatchQueue.main)
         videoOutput.setSampleBufferDelegate(self, queue: queue)
         captureSession.addOutput(videoOutput)
         
@@ -79,7 +79,6 @@ class VideoWriter : NSObject {
         if config.recordAudio {
             audioOutput = AVCaptureAudioDataOutput()
             let queue = DispatchQueue(label: "AudioQueue")
-            //audioOutput.setSampleBufferDelegate(self, queue: DispatchQueue.main)
             audioOutput.setSampleBufferDelegate(self, queue: queue)
             captureSession.addOutput(audioOutput)
         }
@@ -133,9 +132,10 @@ class VideoWriter : NSObject {
             if audioAssetInput != nil {
                 audioAssetInput.markAsFinished()
             }
-            assetWriter.endSession(atSourceTime: CMTimeMake(frameNumber, config.frameRate))
+            //assetWriter.endSession(atSourceTime: CMTimeMake(frameNumber, config.frameRate))
+            assetWriter.endSession(atSourceTime: endTime)
             assetWriter.finishWriting {
-                self.pixelBuffer = nil
+                //self.pixelBuffer = nil
                 self.videoAssetInput = nil
                 self.audioAssetInput = nil
                 self.recordingInProgress = false
@@ -143,6 +143,43 @@ class VideoWriter : NSObject {
         }
     }
 
+    
+}
+
+// 静止画保存
+extension VideoWriter {
+    
+    func takeStillImage() {
+        let capturePhotoSettings = AVCapturePhotoSettings.init(format: [AVVideoCodecKey: AVVideoCodecType.jpeg])
+        capturePhotoSettings.flashMode = .off
+        capturePhotoSettings.isHighResolutionPhotoEnabled = false
+        if imageOutput.isStillImageStabilizationSupported {
+            capturePhotoSettings.isAutoStillImageStabilizationEnabled = true
+        }
+        imageOutput.capturePhoto(with: capturePhotoSettings, delegate: self)
+    }
+
+}
+
+extension VideoWriter : AVCapturePhotoCaptureDelegate {
+    
+    func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
+        PHPhotoLibrary.shared().performChanges({
+            let creationRequest = PHAssetCreationRequest.forAsset()
+            creationRequest.addResource(with: .photo, data: photo.fileDataRepresentation()!, options: nil)
+        }) { (success, error) in
+            if success {
+                print("Photo saved")
+            } else {
+                print("Could not save photo: ", error)
+            }
+        }
+    }
+}
+
+// ビデオ保存
+extension VideoWriter {
+   
     private func uiImageFromSampleBuffer(buffer: CMSampleBuffer) -> UIImage {
         let imageBuffer = CMSampleBufferGetImageBuffer(buffer)!
         
@@ -163,7 +200,7 @@ class VideoWriter : NSObject {
         
         // 画像作成
         let imageRef = newContext.makeImage()!
-        let image = UIImage(cgImage: imageRef, scale: 1.0, orientation: UIImageOrientation.right)
+        let image = UIImage(cgImage: imageRef, scale: 1.0, orientation: UIImageOrientation.up)
         
         // イメージバッファのアンロック
         CVPixelBufferUnlockBaseAddress(imageBuffer, CVPixelBufferLockFlags(rawValue: 0))
@@ -188,20 +225,42 @@ class VideoWriter : NSObject {
         return pxBuffer!
     }
     
-    private func synthesize(buffer: CMSampleBuffer) -> CVPixelBuffer! {
+    private func composeVideo(buffer: CMSampleBuffer) -> CVPixelBuffer {
         let image = uiImageFromSampleBuffer(buffer: buffer)
-        return pixelBufferFromUIImage(image: image)
+        let width = image.size.width
+        let height = image.size.height
+        let font = UIFont.systemFont(ofSize: 14.0)
+        let rect = CGRect(x: 0, y: 0, width: width, height: height)
+        print("\(width) \(height)")
+        
+        UIGraphicsBeginImageContext(image.size)
+        
+        let timestampRect = CGRect(x: 8, y: height - 38, width: 180, height: 30)
+        let locationRect = CGRect(x: width / 2, y: height - 38, width: 180, height: 30)
+        let speedRect = CGRect(x: width - 78, y: height - 38, width: 70, height: 30)
+        
+        let textStyle = NSMutableParagraphStyle.default.mutableCopy() as! NSMutableParagraphStyle
+        let textAttributes = [
+            NSAttributedStringKey.font: font,
+            NSAttributedStringKey.foregroundColor: UIColor.orange,
+            NSAttributedStringKey.paragraphStyle: textStyle
+        ]
+        
+        let timestampText = Date().timestampFromDate()
+        let locationText = "".appendingFormat("%.4f %.4f %.0fm", DriveInfo.singleton.latitude, DriveInfo.singleton.longitude, DriveInfo.singleton.altitude)
+        let speedText = "".appendingFormat("%.fkm/h", DriveInfo.singleton.speed)
+        
+        image.draw(in: rect)
+        timestampText.draw(in: timestampRect, withAttributes: textAttributes)
+        locationText.draw(in: locationRect, withAttributes: textAttributes)
+        speedText.draw(in: speedRect, withAttributes: textAttributes)
+        
+        let composedImage = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        
+        return pixelBufferFromUIImage(image: composedImage!)
     }
-    
-    func takeStillImage() {
-        let capturePhotoSettings = AVCapturePhotoSettings.init(format: [AVVideoCodecKey: AVVideoCodecType.jpeg])
-        capturePhotoSettings.flashMode = .off
-        capturePhotoSettings.isHighResolutionPhotoEnabled = false
-        if imageOutput.isStillImageStabilizationSupported {
-            capturePhotoSettings.isAutoStillImageStabilizationEnabled = true
-        }
-        imageOutput.capturePhoto(with: capturePhotoSettings, delegate: self)
-    }
+
 }
 
 extension VideoWriter : AVCaptureVideoDataOutputSampleBufferDelegate, AVCaptureAudioDataOutputSampleBufferDelegate {
@@ -223,12 +282,13 @@ extension VideoWriter : AVCaptureVideoDataOutputSampleBufferDelegate, AVCaptureA
         
         if isVideo {
             if videoAssetInput.isReadyForMoreMediaData {
-                //let timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
-                //let frameTime = CMTimeSubtract(timestamp, startTime)
-                //guard let pxBuffer = synthesize(buffer: sampleBuffer) else { return }
-                guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
-                pixelBuffer.append(imageBuffer, withPresentationTime: CMTimeMake(frameNumber, config.frameRate))
-                //pixelBuffer.append(pxBuffer, withPresentationTime: frameTime)
+                let timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
+                let frameTime = CMTimeSubtract(timestamp, startTime)
+                endTime = frameTime
+                let pxBuffer = composeVideo(buffer: sampleBuffer)
+                //guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
+                //pixelBuffer.append(imageBuffer, withPresentationTime: CMTimeMake(frameNumber, config.frameRate))
+                pixelBuffer.append(pxBuffer, withPresentationTime: frameTime)
                 //pixelBuffer.append(pxBuffer, withPresentationTime: CMTimeMake(frameNumber, config.frameRate))
                 frameNumber += 1
             }
@@ -240,18 +300,3 @@ extension VideoWriter : AVCaptureVideoDataOutputSampleBufferDelegate, AVCaptureA
     }
 }
 
-extension VideoWriter : AVCapturePhotoCaptureDelegate {
-    
-    func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
-        PHPhotoLibrary.shared().performChanges({
-            let creationRequest = PHAssetCreationRequest.forAsset()
-            creationRequest.addResource(with: .photo, data: photo.fileDataRepresentation()!, options: nil)
-        }) { (success, error) in
-            if success {
-                print("Photo saved")
-            } else {
-                print("Could not save photo: ", error)
-            }
-        }
-    }
-}
