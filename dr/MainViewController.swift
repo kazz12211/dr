@@ -136,11 +136,16 @@ class MainViewController: UIViewController {
         frameRateLabel.textColor = recordingInProgress ? UIColor.orange : UIColor.white
         videoQualityLabel.textColor = recordingInProgress ? UIColor.orange : UIColor.white
         audioStateImage.tintColor = recordingInProgress ? UIColor.orange : UIColor.white
+        
         if recordingInProgress {
             recordButton.setImage(UIImage(named: "icon_stop"), for: .normal)
         } else {
             recordButton.setImage(UIImage(named: "icon_record"), for: .normal)
         }
+        
+        timeLabel.isHidden = !recordingInProgress
+        speedLabel.isHidden = !recordingInProgress
+        locationLabel.isHidden = !recordingInProgress
     }
     
     // from Apple developer site
@@ -259,7 +264,6 @@ extension MainViewController {
     }
     
     private func takePhoto() {
-        print("Taking photo")
         videoWriter.takeStillImage()
     }
 
@@ -283,26 +287,28 @@ extension MainViewController {
     }
     
     private func configureCaptureDevice() {
+        DispatchQueue.global(qos: .userInitiated).async {
         do {
-            try videoDevice.lockForConfiguration()
-            videoDevice.activeVideoMinFrameDuration = CMTime(value: 1, timescale: Config.default.frameRate)
+            try self.videoDevice.lockForConfiguration()
+            self.videoDevice.activeVideoMinFrameDuration = CMTime(value: 1, timescale: Config.default.frameRate)
             // 暗いところでの明るさブースト
-            if videoDevice.isLowLightBoostEnabled {
-                videoDevice.automaticallyEnablesLowLightBoostWhenAvailable = true
+            if self.videoDevice.isLowLightBoostEnabled {
+                self.videoDevice.automaticallyEnablesLowLightBoostWhenAvailable = true
             }
             // フォーカス設定
             // 画面の中心にオートフォーカス
-            if videoDevice.isFocusModeSupported(.locked) && videoDevice.isFocusPointOfInterestSupported {
-                videoDevice.focusPointOfInterest = CGPoint(x: 0.5, y: 0.5)
-                videoDevice.focusMode = .autoFocus
+            if self.videoDevice.isFocusModeSupported(.locked) && self.videoDevice.isFocusPointOfInterestSupported {
+                self.videoDevice.focusPointOfInterest = CGPoint(x: 0.5, y: 0.5)
+                self.videoDevice.focusMode = .autoFocus
             }
             // Video HDRの設定
-            if videoDevice.isVideoHDREnabled {
-                videoDevice.isVideoHDREnabled = true
+            if self.videoDevice.isVideoHDREnabled {
+                self.videoDevice.isVideoHDREnabled = true
             }
-            videoDevice.unlockForConfiguration()
+            self.videoDevice.unlockForConfiguration()
         } catch {
             
+        }
         }
     }
     
