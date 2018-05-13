@@ -36,9 +36,10 @@ iPhone版ドライブレコーダー「ドラカメ」の第２版です。旧�
 
 ## 開発環境
 
-- iOS 11.0+
-- Xcode 9.2
-- Swift 4.0
+- iOS 11.3.1
+- Xcode 9.3.1
+- Swift 4.1
+- iOS 11.3 SDK
 - iPhone 5s
 - 使用フレームワーク
   - UIKit
@@ -46,7 +47,7 @@ iPhone版ドライブレコーダー「ドラカメ」の第２版です。旧�
   - CoreMotion
   - CoreAudio
   - CoreVideo
-  - AVFoundation
+  - AVFoundation など
 
 ## 製作に関連する読み物
 

@@ -93,13 +93,19 @@ class VideoWriter : NSObject {
     }
     
     func start() -> Bool {
+        if recordingInProgress { return true }
+        
         let documentPath = NSHomeDirectory() + "/Documents/"
         let filePath = documentPath + Date().filenameFromDate() + ".mp4"
         let url = URL(fileURLWithPath: filePath)
 
         let width = config.videoQuality == Constants.VideoQualityHigh ? 1920 : config.videoQuality == Constants.VideoQualityMedium ? 1280 : 640
         let height = config.videoQuality == Constants.VideoQualityHigh ? 1080 : config.videoQuality == Constants.VideoQualityMedium ? 720 : 480
-        let videoInputSettings = [AVVideoWidthKey: width, AVVideoHeightKey: height, AVVideoCodecKey: AVVideoCodecType.h264] as [String:Any]
+        let videoInputSettings = [
+            AVVideoWidthKey: width,
+            AVVideoHeightKey: height,
+            AVVideoCodecKey: AVVideoCodecType.h264
+        ] as [String: Any]
         
         videoAssetInput = AVAssetWriterInput(mediaType: .video, outputSettings: videoInputSettings)
         pixelBuffer = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: videoAssetInput, sourcePixelBufferAttributes: [kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_32BGRA)])
@@ -111,7 +117,17 @@ class VideoWriter : NSObject {
             videoAssetInput.expectsMediaDataInRealTime = true
             assetWriter.add(videoAssetInput)
             if config.recordAudio {
-                let audioInputSettings = [AVFormatIDKey: kAudioFormatMPEG4AAC, AVNumberOfChannelsKey: 1, AVSampleRateKey: 44100, AVEncoderBitRateKey: 128000]
+                var acl = AudioChannelLayout()
+                bzero(&acl, MemoryLayout<AudioChannelLayout>.size)
+                acl.mChannelLayoutTag = kAudioChannelLayoutTag_Mono
+                
+                let audioInputSettings = [
+                    AVFormatIDKey: kAudioFormatMPEG4AAC,
+                    AVNumberOfChannelsKey: 1,
+                    AVSampleRateKey: 44100,
+                    AVEncoderBitRateKey: 64000,
+                    AVChannelLayoutKey: Data(bytes: &acl, count: MemoryLayout<AudioChannelLayout>.size)
+                ] as [String: Any]
                 audioAssetInput = AVAssetWriterInput(mediaType: .audio, outputSettings: audioInputSettings)
                 audioAssetInput.expectsMediaDataInRealTime = true
                 assetWriter.add(audioAssetInput)
@@ -127,6 +143,8 @@ class VideoWriter : NSObject {
     }
     
     func stop() {
+        if !recordingInProgress { return }
+        
         if assetWriter != nil {
             videoAssetInput.markAsFinished()
             if audioAssetInput != nil {
@@ -231,7 +249,6 @@ extension VideoWriter {
         let height = image.size.height
         let font = UIFont.systemFont(ofSize: 14.0)
         let rect = CGRect(x: 0, y: 0, width: width, height: height)
-        print("\(width) \(height)")
         
         UIGraphicsBeginImageContext(image.size)
         
@@ -266,26 +283,21 @@ extension VideoWriter {
 extension VideoWriter : AVCaptureVideoDataOutputSampleBufferDelegate, AVCaptureAudioDataOutputSampleBufferDelegate {
     
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
-        if !CMSampleBufferDataIsReady(sampleBuffer) {
-            return
-        }
-        
-        if !recordingInProgress {
+        if !CMSampleBufferDataIsReady(sampleBuffer) || !recordingInProgress {
             return
         }
         
         if frameNumber == 0 {
             startTime = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
         }
-        
+        let timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
+        let frameTime = CMTimeSubtract(timestamp, startTime)
+
         let isVideo = output is AVCaptureVideoDataOutput
         
         if isVideo {
             if videoAssetInput.isReadyForMoreMediaData {
-                let timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
-                let frameTime = CMTimeSubtract(timestamp, startTime)
-                endTime = frameTime
-                let pxBuffer = composeVideo(buffer: sampleBuffer)
+                let pxBuffer:CVPixelBuffer = composeVideo(buffer: sampleBuffer)
                 //guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
                 //pixelBuffer.append(imageBuffer, withPresentationTime: CMTimeMake(frameNumber, config.frameRate))
                 pixelBuffer.append(pxBuffer, withPresentationTime: frameTime)
@@ -297,6 +309,7 @@ extension VideoWriter : AVCaptureVideoDataOutputSampleBufferDelegate, AVCaptureA
                 audioAssetInput.append(sampleBuffer)
             }
         }
+        endTime = frameTime
     }
 }
 

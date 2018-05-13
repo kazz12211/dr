@@ -48,10 +48,12 @@ class MainViewController: UIViewController {
     
     var videoWriter: VideoWriter!
  
-    var initialVolume = 0.0
+    var initialVolume: Float = 0.0
     
     var authorized: Bool = false
-
+    
+    var volumeView: MPVolumeView!
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -80,10 +82,11 @@ class MainViewController: UIViewController {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        listenVolumeButton()
+        startListeningVolumeButton()
         displayBatteryLevel()
         if authorized {
             configureCaptureDevice()
+            videoWriter.reset()
             if !captureSession.isRunning {
                 startCaptureSession()
             }
@@ -92,7 +95,7 @@ class MainViewController: UIViewController {
     
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
-        AVAudioSession.sharedInstance().removeObserver(self, forKeyPath: "outputVolume")
+        stopListeningVolumeButton()
         if authorized {
             if captureSession.isRunning {
                 stopCaptureSession()
@@ -193,12 +196,17 @@ class MainViewController: UIViewController {
 extension MainViewController {
     
     
-    func listenVolumeButton() {
+    func startListeningVolumeButton() {
+        let frame = CGRect(x: -100, y: -100, width: 100, height: 100)
+        volumeView = MPVolumeView(frame: frame)
+        volumeView.sizeToFit()
+        view.addSubview(volumeView)
+        
         let audioSession = AVAudioSession.sharedInstance()
         do {
             try audioSession.setActive(true)
             let vol = audioSession.outputVolume
-            initialVolume = Double(vol.description)!
+            initialVolume = Float(vol.description)!
             if initialVolume > 0.9 {
                 initialVolume = 0.9
             } else if initialVolume < 0.1 {
@@ -210,17 +218,30 @@ extension MainViewController {
         }
     }
 
+    func stopListeningVolumeButton() {
+        AVAudioSession.sharedInstance().removeObserver(self, forKeyPath: "outputVolume")
+        volumeView.removeFromSuperview()
+        volumeView = nil
+    }
     override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
         if keyPath == "outputVolume" {
-            let volume = (change?[NSKeyValueChangeKey.newKey] as! NSNumber).floatValue
-            let newVolume = Double(volume)
+            let newVolume = (change?[NSKeyValueChangeKey.newKey] as! NSNumber).floatValue
             if initialVolume > newVolume {
                 volumeDown()
                 initialVolume = newVolume
+                if initialVolume < 0.1 {
+                    initialVolume = 0.1
+                }
             } else if initialVolume < newVolume {
                 volumeUp()
                 initialVolume = newVolume
+                if initialVolume > 0.9 {
+                    initialVolume = 0.9
+                }
             }
+            AVAudioSession.sharedInstance().removeObserver(self, forKeyPath: "outputVolume")
+            (volumeView.subviews.filter{NSStringFromClass($0.classForCoder) == "MPVolumeSlider"}.first as? UISlider)?.setValue(initialVolume, animated: false)
+            AVAudioSession.sharedInstance().addObserver(self, forKeyPath: "outputVolume", options: .new, context: nil)
         }
     }
     
@@ -490,7 +511,6 @@ extension MainViewController {
     
     @objc private func configurationSaved(notification: Notification) {
         resetCaptureDevice()
-        videoWriter.reset()
         updateDisplay()
         if !captureSession.isRunning {
             startCaptureSession()
