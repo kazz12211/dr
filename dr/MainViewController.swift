@@ -86,7 +86,6 @@ class MainViewController: UIViewController {
         displayBatteryLevel()
         if authorized {
             configureCaptureDevice()
-            videoWriter.reset()
             if !captureSession.isRunning {
                 startCaptureSession()
             }

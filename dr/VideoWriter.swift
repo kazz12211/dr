@@ -38,26 +38,6 @@ class VideoWriter : NSObject {
         setupImageOutput()
     }
     
-    func reset() {
-        recordingInProgress = false
-        if videoOutput != nil {
-            videoOutput.setSampleBufferDelegate(nil, queue: DispatchQueue.main)
-            captureSession.removeOutput(videoOutput)
-            videoOutput = nil
-        }
-        if audioOutput != nil {
-            audioOutput.setSampleBufferDelegate(nil, queue: DispatchQueue.main)
-            captureSession.removeOutput(audioOutput)
-            audioOutput = nil
-        }
-        if imageOutput != nil {
-            captureSession.removeOutput(imageOutput)
-            imageOutput = nil
-        }
-        setupVideoOutput()
-        setupAudioOutput()
-        setupImageOutput()
-    }
     
     private func setupVideoOutput() {
         videoOutput = AVCaptureVideoDataOutput()
