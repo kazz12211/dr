@@ -54,6 +54,8 @@ class MainViewController: UIViewController {
     
     var volumeView: MPVolumeView!
     
+    var adjustingExposure: Bool = false
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -213,6 +215,48 @@ class MainViewController: UIViewController {
             completionHandler(false)
         }
     }
+    
+    // 出力音量の変化とカメラ露出を監視する
+    override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
+        if keyPath == "outputVolume" {
+            let newVolume = (change?[NSKeyValueChangeKey.newKey] as! NSNumber).floatValue
+            // 出力音量が上がったか下がったかによって処理を分岐する
+            if initialVolume > newVolume {
+                volumeDown()
+                initialVolume = newVolume
+                if initialVolume < 0.1 {
+                    initialVolume = 0.1
+                }
+            } else if initialVolume < newVolume {
+                volumeUp()
+                initialVolume = newVolume
+                if initialVolume > 0.9 {
+                    initialVolume = 0.9
+                }
+            }
+            // 一旦出力音量の監視をやめて出力音量を設定してから出力音量の監視を再開する
+            AVAudioSession.sharedInstance().removeObserver(self, forKeyPath: "outputVolume")
+            setVolume(initialVolume)
+            AVAudioSession.sharedInstance().addObserver(self, forKeyPath: "outputVolume", options: .new, context: nil)
+        }
+        // 露出をロックしたい場合
+        /*else if keyPath == "adjustingExposure" {
+            if !adjustingExposure {
+                return
+            }
+            
+            if (change?[NSKeyValueChangeKey.newKey] as! Bool) == false {
+                adjustingExposure = false
+                do {
+                    try videoDevice.lockForConfiguration()
+                    videoDevice.exposureMode = .locked
+                    videoDevice.unlockForConfiguration()
+                } catch {
+                    
+                }
+            }
+        }*/
+    }
 }
 
 // ボリュームボタン関連
@@ -255,30 +299,6 @@ extension MainViewController {
         volumeView = nil
     }
     
-    // 出力音量の変化を監視する
-    override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
-        if keyPath == "outputVolume" {
-            let newVolume = (change?[NSKeyValueChangeKey.newKey] as! NSNumber).floatValue
-            // 出力音量が上がったか下がったかによって処理を分岐する
-            if initialVolume > newVolume {
-                volumeDown()
-                initialVolume = newVolume
-                if initialVolume < 0.1 {
-                    initialVolume = 0.1
-                }
-            } else if initialVolume < newVolume {
-                volumeUp()
-                initialVolume = newVolume
-                if initialVolume > 0.9 {
-                    initialVolume = 0.9
-                }
-            }
-            // 一旦出力音量の監視をやめて出力音量を設定してから出力音量の監視を再開する
-            AVAudioSession.sharedInstance().removeObserver(self, forKeyPath: "outputVolume")
-            setVolume(initialVolume)
-            AVAudioSession.sharedInstance().addObserver(self, forKeyPath: "outputVolume", options: .new, context: nil)
-        }
-    }
     
     // ボリュームビューの音量調整スライダーを操作することで音量を設定する
     private func setVolume(_ volume: Float) {
@@ -338,9 +358,17 @@ extension MainViewController {
             }
             // フォーカス設定
             // 画面の中心にオートフォーカス
-            if self.videoDevice.isFocusModeSupported(.locked) && self.videoDevice.isFocusPointOfInterestSupported {
+            if self.videoDevice.isFocusModeSupported(.continuousAutoFocus) && self.videoDevice.isFocusPointOfInterestSupported {
                 self.videoDevice.focusPointOfInterest = CGPoint(x: 0.5, y: 0.5)
-                self.videoDevice.focusMode = .autoFocus
+                self.videoDevice.focusMode = .continuousAutoFocus
+            }
+            
+            // 露出の設定
+            // 画面の中心に露出を合わせる
+            if self.videoDevice.isExposureModeSupported(.continuousAutoExposure) && self.videoDevice.isExposurePointOfInterestSupported {
+                self.adjustingExposure = true
+                self.videoDevice.exposurePointOfInterest = CGPoint(x: 0.5, y: 0.5)
+                self.videoDevice.exposureMode = .continuousAutoExposure
             }
             // Video HDRの設定
             if self.videoDevice.isVideoHDREnabled {
@@ -370,6 +398,8 @@ extension MainViewController {
         
         videoDevice = devices.first
         
+        // 露出をロックしたい場合
+        //videoDevice.addObserver(self, forKeyPath: "adjustingExposure", options: .new, context: nil)
         configureCaptureDevice()
         
         do {
