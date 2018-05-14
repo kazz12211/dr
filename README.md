@@ -6,6 +6,29 @@ iPhone版ドライブレコーダー「ドラカメ」の第２版です。旧�
 
 旧「ドラカメ」のソースコードは[drivecamera](https://github.com/kazz12211/drivecamera)で公開しています。
 
+## スクリーンショット
+
+録画中のメイン画面
+
+![](./screenshots/ScreenShot_Main.png)
+-----
+設定画面
+
+![](./screenshots/ScreenShot_Config.png)
+-----
+プレイリスト画面
+
+![](./screenshots/ScreenShot_Playlist.png)
+-----
+再生画面
+
+![](./screenshots/ScreenShot_Player.png)
+-----
+エクスポート画面
+
+![](./screenshots/ScreenShot_Export.png)
+-----
+
 ## 主な機能
 
 - ビデオ品質は1920x1080、1280x720、640x480から選択が可能
@@ -27,12 +50,7 @@ iPhone版ドライブレコーダー「ドラカメ」の第２版です。旧�
 ## 開発状況
 
 - オートバイに搭載した状態でのテストは終了していません
-- 音声録音が動作していません
-
-## 録画容量について
-
-- 640x480/25fps撮影時　12時間で10GB程度
-- 1280x720/30fps撮影時 12時間で28GB程度
+- 音声録音が正常に動作していません
 
 ## 開発環境
 
