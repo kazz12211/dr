@@ -528,7 +528,7 @@ extension MainViewController: CLLocationManagerDelegate {
             locationLabel.text = "".appendingFormat("%.4f  %.4f  %.0fm", DriveInfo.singleton.latitude, DriveInfo.singleton.longitude, DriveInfo.singleton.altitude)
             
             // 設定速度（ConfigのautoStartSpeed）に達したら録画を開始する
-            if speed > Config.default.autoStartSpeed && Config.default.autoStartEnabled && !recordingInProgress {
+            if speed >= Config.default.autoStartSpeed && Config.default.autoStartEnabled && !recordingInProgress {
                 startRecording()
             }
         }
@@ -654,6 +654,9 @@ extension MainViewController {
         storageMonitoringTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true, block: { (timer) in
             let freeStorageSize = self.calculateFreeStorage()
             self.freeStorageLabel.text = "".appendingFormat("%.0fGB", freeStorageSize.doubleValue)
+            if freeStorageSize.doubleValue <= 1.0 {
+                self.stopRecording()
+            }
         })
         storageMonitoringTimer.fire()
     }
