@@ -113,6 +113,14 @@ class MainViewController: UIViewController {
         }
     }
     
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        if authorized {
+            // キャプチャー入力デバイスの再設定
+            configureCaptureDevice()
+        }
+    }
+    
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         // ボリュームボタンの監視を終了する

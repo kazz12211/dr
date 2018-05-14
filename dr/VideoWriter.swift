@@ -233,7 +233,7 @@ extension VideoWriter {
         UIGraphicsBeginImageContext(image.size)
         
         let timestampRect = CGRect(x: 8, y: height - 38, width: 180, height: 30)
-        let locationRect = CGRect(x: width / 2, y: height - 38, width: 180, height: 30)
+        let locationRect = CGRect(x: width / 2, y: height - 38, width: 240, height: 30)
         let speedRect = CGRect(x: width - 78, y: height - 38, width: 70, height: 30)
         
         let textStyle = NSMutableParagraphStyle.default.mutableCopy() as! NSMutableParagraphStyle
@@ -244,7 +244,7 @@ extension VideoWriter {
         ]
         
         let timestampText = Date().timestampFromDate()
-        let locationText = "".appendingFormat("%.4f %.4f %.0fm", DriveInfo.singleton.latitude, DriveInfo.singleton.longitude, DriveInfo.singleton.altitude)
+        let locationText = "".appendingFormat("%.6f %.6f %.0fm", DriveInfo.singleton.latitude, DriveInfo.singleton.longitude, DriveInfo.singleton.altitude)
         let speedText = "".appendingFormat("%.fkm/h", DriveInfo.singleton.speed)
         
         image.draw(in: rect)

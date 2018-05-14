@@ -9,6 +9,7 @@
 
 import UIKit
 import AVFoundation
+import CoreAudio
 
 class PlayerView: UIView {
 
@@ -75,6 +76,14 @@ class PlayerViewController: UIViewController {
     }
 
     private func playVideo() {
+        /*
+        do {
+            try AVAudioSession.sharedInstance().setCategory(AVAudioSessionCategoryPlayback)
+            try AVAudioSession.sharedInstance().setActive(true)
+        } catch {
+            print("Could not activate audio session ", error)
+        }
+        */
         videoPlayer.play()
         startButton.setImage(UIImage(named: "icon_pause"), for: UIControlState.normal)
         startButton.backgroundColor = UIColor.red
