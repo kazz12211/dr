@@ -54,7 +54,8 @@ class MainViewController: UIViewController {
     
     var volumeView: MPVolumeView!
     
-    var adjustingExposure: Bool = false
+    // 露出をロックしたい時
+    //var adjustingExposure: Bool = false
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -358,15 +359,16 @@ extension MainViewController {
             }
             // フォーカス設定
             // 画面の中心にオートフォーカス
-            if self.videoDevice.isFocusModeSupported(.continuousAutoFocus) && self.videoDevice.isFocusPointOfInterestSupported {
+            if self.videoDevice.isFocusModeSupported(.autoFocus) && self.videoDevice.isFocusPointOfInterestSupported {
                 self.videoDevice.focusPointOfInterest = CGPoint(x: 0.5, y: 0.5)
-                self.videoDevice.focusMode = .continuousAutoFocus
+                self.videoDevice.focusMode = .autoFocus
             }
             
             // 露出の設定
             // 画面の中心に露出を合わせる
             if self.videoDevice.isExposureModeSupported(.continuousAutoExposure) && self.videoDevice.isExposurePointOfInterestSupported {
-                self.adjustingExposure = true
+                // 露出をロックしたい時
+                //self.adjustingExposure = true
                 self.videoDevice.exposurePointOfInterest = CGPoint(x: 0.5, y: 0.5)
                 self.videoDevice.exposureMode = .continuousAutoExposure
             }
