@@ -538,7 +538,7 @@
                                                     <nil key="highlightedColor"/>
                                                 </label>
                                                 <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="time" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="6ip-2q-ai5">
-                                                    <rect key="frame" x="126" y="36" width="350" height="21"/>
+                                                    <rect key="frame" x="126" y="36" width="330" height="21"/>
                                                     <constraints>
                                                         <constraint firstAttribute="height" constant="21" id="eLx-g1-Ygu"/>
                                                     </constraints>
@@ -547,10 +547,10 @@
                                                     <nil key="highlightedColor"/>
                                                 </label>
                                                 <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="size" textAlignment="right" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="kY9-pa-Enf">
-                                                    <rect key="frame" x="492" y="36" width="60" height="21"/>
+                                                    <rect key="frame" x="472" y="36" width="80" height="21"/>
                                                     <constraints>
                                                         <constraint firstAttribute="height" constant="21" id="LwF-RC-kZb"/>
-                                                        <constraint firstAttribute="width" constant="60" id="Wml-AB-cmq"/>
+                                                        <constraint firstAttribute="width" constant="80" id="Wml-AB-cmq"/>
                                                     </constraints>
                                                     <fontDescription key="fontDescription" type="system" pointSize="17"/>
                                                     <nil key="textColor"/>

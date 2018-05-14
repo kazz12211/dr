@@ -57,21 +57,35 @@ class MainViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         
+        // バッテリー残量の監視を開始する
         startBatteryMonitoring()
+        // 設定変更の監視を開始する
         startConfigurationMonitoring()
+        // ディスク空容量の監視を開始する
         startFreeStorageMonitoring()
+        // 時刻表示を更新するタイマーを開始する
         startTimer()
+        // GPSの受信を開始する
         startGPS()
+        // 加速度センサーの監視を開始する
         startMotion()
         
+        // カメラの使用確認
         checkCameraAuthorization { (authorized) in
             if authorized {
+                // キャプチャーセッションの設定
                 self.setupCaptureSession()
+                // キャプチャー入力デバイスの設定
+                // バックカメラとビルトインマイクを使用する
                 self.setupCaptureDevice()
+                // キャプチャー映像を表示するビューを設定する
                 self.setupPreviewLayer()
+                // フォトアルバムへのアクセス権を確認
                 self.checkPhotoLibraryAuthorization({ (authorized) in
                     if authorized {
+                        // ビデオの書き出し設定
                         self.setupVideoWriter()
+                        // 画面の更新
                         self.updateState()
                         self.authorized = authorized
                     }
@@ -82,11 +96,15 @@ class MainViewController: UIViewController {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        // ボリュームボタンの監視を開始する
         startListeningVolumeButton()
+        // バッテリー残量の表示
         displayBatteryLevel()
         if authorized {
+            // キャプチャー入力デバイスの再設定
             configureCaptureDevice()
             if !captureSession.isRunning {
+                // キプチャーセッションの開始
                 startCaptureSession()
             }
         }
@@ -94,9 +112,11 @@ class MainViewController: UIViewController {
     
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
+        // ボリュームボタンの監視を終了する
         stopListeningVolumeButton()
         if authorized {
             if captureSession.isRunning {
+                // キャプチャーセッションの停止
                 stopCaptureSession()
             }
         }
@@ -196,11 +216,12 @@ class MainViewController: UIViewController {
 }
 
 // ボリュームボタン関連
-
+// Bluetoothリモートシャッター（ダイソーで売られているような安価なものを使用可能）のシャッターボタン押し下げはiPhoneから見るとボリュームアップボタンの押し下げに見える
 extension MainViewController {
     
-    
+    // ボリュームボタン押し下げの監視を開始
     func startListeningVolumeButton() {
+        // Volumeビューを画面の外側に追い出して見えないようにする
         let frame = CGRect(x: -100, y: -100, width: 100, height: 100)
         volumeView = MPVolumeView(frame: frame)
         volumeView.sizeToFit()
@@ -209,6 +230,7 @@ extension MainViewController {
         let audioSession = AVAudioSession.sharedInstance()
         do {
             try audioSession.setActive(true)
+            // AVAudioSessionの出力音量を取得して、最大音量と無音に振り切れないように初期音量を設定する
             let vol = audioSession.outputVolume
             initialVolume = Float(vol.description)!
             if initialVolume > 0.9 {
@@ -216,20 +238,28 @@ extension MainViewController {
             } else if initialVolume < 0.1 {
                 initialVolume = 0.1
             }
+            setVolume(initialVolume)
+            // 出力音量の監視を開始
             audioSession.addObserver(self, forKeyPath: "outputVolume", options: .new, context: nil)
         } catch {
             print("Could not observer outputVolume ", error)
         }
     }
 
+    // ボリュームボタンの押し下げの監視を終了
     func stopListeningVolumeButton() {
+        // 出力音量の監視を終了
         AVAudioSession.sharedInstance().removeObserver(self, forKeyPath: "outputVolume")
+        // ボリュームビューを破棄
         volumeView.removeFromSuperview()
         volumeView = nil
     }
+    
+    // 出力音量の変化を監視する
     override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
         if keyPath == "outputVolume" {
             let newVolume = (change?[NSKeyValueChangeKey.newKey] as! NSNumber).floatValue
+            // 出力音量が上がったか下がったかによって処理を分岐する
             if initialVolume > newVolume {
                 volumeDown()
                 initialVolume = newVolume
@@ -243,12 +273,19 @@ extension MainViewController {
                     initialVolume = 0.9
                 }
             }
+            // 一旦出力音量の監視をやめて出力音量を設定してから出力音量の監視を再開する
             AVAudioSession.sharedInstance().removeObserver(self, forKeyPath: "outputVolume")
-            (volumeView.subviews.filter{NSStringFromClass($0.classForCoder) == "MPVolumeSlider"}.first as? UISlider)?.setValue(initialVolume, animated: false)
+            setVolume(initialVolume)
             AVAudioSession.sharedInstance().addObserver(self, forKeyPath: "outputVolume", options: .new, context: nil)
         }
     }
     
+    // ボリュームビューの音量調整スライダーを操作することで音量を設定する
+    private func setVolume(_ volume: Float) {
+        (volumeView.subviews.filter{NSStringFromClass($0.classForCoder) == "MPVolumeSlider"}.first as? UISlider)?.setValue(initialVolume, animated: false)
+    }
+    
+    // ドライブレコーダーが録画中なら静止画撮影、そうでなければドライブレコーダーの録画を開始
     private func volumeUp() {
         if !recordingInProgress {
             startRecording()
@@ -257,6 +294,7 @@ extension MainViewController {
         }
     }
     
+    // ドライブレコーダーの停止
     private func volumeDown() {
         if recordingInProgress {
             stopRecording()
@@ -273,11 +311,13 @@ extension MainViewController {
 
 extension MainViewController {
     
+    // AVCaptureSessionの設定
     private func setupCaptureSession() {
         captureSession = AVCaptureSession()
         captureSession.sessionPreset = Config.default.videoQuality
     }
     
+    // キャプチャーデバイスをAVCaptureSessionに追加する
     private func setupCaptureDevice() {
         addVideoDevice()
         
@@ -286,6 +326,7 @@ extension MainViewController {
         }
     }
     
+    // カメラの設定
     private func configureCaptureDevice() {
         DispatchQueue.global(qos: .userInitiated).async {
         do {
@@ -312,6 +353,7 @@ extension MainViewController {
         }
     }
     
+    // キャプチャーデバイスの再構成
     private func resetCaptureDevice() {
         if captureSession.isRunning {
             stopCaptureSession()
@@ -321,6 +363,7 @@ extension MainViewController {
         setupCaptureDevice()
     }
     
+    // ビデオ入力デバイス（バックカメラ）をAVCaptureSessionに追加する
     private func addVideoDevice() {
         let discoverSession = AVCaptureDevice.DiscoverySession.init(deviceTypes: [.builtInWideAngleCamera], mediaType: .video, position: .back)
         let devices = discoverSession.devices
@@ -339,6 +382,7 @@ extension MainViewController {
         }
     }
     
+    // ビデオ入力デバイス（バックカメラ）をAVCaptureSessionから取り除く
     private func removeVideoDevice() {
         if videoInput != nil {
             captureSession.removeInput(videoInput)
@@ -347,6 +391,8 @@ extension MainViewController {
         }
     }
     
+    // オーディオ入力デバイス（ビルトインマイク）をAVCaptureSessionに追加する
+    // Bluetoothヘッドセットを使うと、ヘッドセットのマイクが使われる
     private func addAudioDevice() {
         audioDevice = AVCaptureDevice.default(.builtInMicrophone, for: .audio, position: .unspecified)
         do {
@@ -359,6 +405,7 @@ extension MainViewController {
         }
     }
     
+    // オーディオ入力デバイス（ビルトインマイク）をAVCaptureSessionから取り除く
     private func removeAudioDevice() {
         if audioInput != nil {
             captureSession.removeInput(audioInput)
@@ -367,6 +414,7 @@ extension MainViewController {
         }
     }
 
+    // AVCaptureSessionのプレビュー画面の設定
     private func setupPreviewLayer() {
         previewLayer = AVCaptureVideoPreviewLayer(session: captureSession)
         previewLayer.backgroundColor = UIColor.black.cgColor
@@ -382,6 +430,7 @@ extension MainViewController {
         previewView.bringSubview(toFront: footerView)
     }
     
+    // ビデオ書き込みの準備
     private func setupVideoWriter() {
         videoWriter = VideoWriter(session: captureSession)
     }
@@ -402,6 +451,7 @@ extension MainViewController {
 // GPS関連
 extension MainViewController {
     
+    // CLLocationManagerの更新通知を開始
     private func startGPS() {
         locationManager = CLLocationManager()
         locationManager.delegate = self
@@ -413,6 +463,7 @@ extension MainViewController {
         locationManager.startUpdatingLocation()
     }
     
+    // CLLocationManagerの更新通知を終了
     private func stopGPS() {
         locationManager.stopUpdatingLocation()
         locationManager.delegate = nil
@@ -421,6 +472,7 @@ extension MainViewController {
 
 extension MainViewController: CLLocationManagerDelegate {
     
+    // CLLocationManagerによって更新された速度、緯度、経度、標高を記録
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         if let location = locations.last {
             var speed = location.speed
@@ -435,6 +487,7 @@ extension MainViewController: CLLocationManagerDelegate {
             speedLabel.text = "".appendingFormat("%.fkm/h", DriveInfo.singleton.speed)
             locationLabel.text = "".appendingFormat("%.4f  %.4f  %.0fm", DriveInfo.singleton.latitude, DriveInfo.singleton.longitude, DriveInfo.singleton.altitude)
             
+            // 設定速度（ConfigのautoStartSpeed）に達したら録画を開始する
             if speed > Config.default.autoStartSpeed && Config.default.autoStartEnabled && !recordingInProgress {
                 startRecording()
             }
@@ -445,6 +498,7 @@ extension MainViewController: CLLocationManagerDelegate {
 // Gセンサー関連
 extension MainViewController {
     
+    // 加速度センサーの初期化と更新通知の開始
     private func startMotion() {
         motionManager = CMMotionManager()
         if motionManager.isAccelerometerAvailable {
@@ -456,6 +510,7 @@ extension MainViewController {
                 guard let data = accelerationData else {
                     return
                 }
+                // 衝撃を受けたら録画開始
                 if fabs(data.acceleration.y) > Config.default.gsensorSensibility || fabs(data.acceleration.z) > Config.default.gsensorSensibility {
                     if !self.recordingInProgress {
                         self.startRecording()
@@ -469,27 +524,33 @@ extension MainViewController {
 // バッテリー状態
 extension MainViewController {
     
+    // バッテリー状態の監視を開始
     private func startBatteryMonitoring() {
         UIDevice.current.isBatteryMonitoringEnabled = true
         NotificationCenter.default.addObserver(self, selector: #selector(MainViewController.batteryLevelChanged(notification:)), name: Notification.Name.UIDeviceBatteryLevelDidChange, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(MainViewController.batteryStateChanged(notification:)), name: Notification.Name.UIDeviceBatteryStateDidChange, object: nil)
     }
     
+    // バッテリー状態の監視を停止
     private func stopBatteryMonitoring() {
         UIDevice.current.isBatteryMonitoringEnabled = false
         NotificationCenter.default.removeObserver(self, name: Notification.Name.UIDeviceBatteryLevelDidChange, object: nil)
         NotificationCenter.default.removeObserver(self, name: Notification.Name.UIDeviceBatteryStateDidChange, object: nil)
     }
     
+    // バッテリー残量が変化したら呼び出されるメソッド
     @objc private func batteryLevelChanged(notification: Notification) {
         displayBatteryLevel()
     }
     
+    // バッテリー残量の画面表示
     private func displayBatteryLevel() {
         batteryStateLabel.text = "".appendingFormat("%.0f%%", UIDevice.current.batteryLevel * 100)
     }
     
+    // バッテリーの充電状態が変化したら呼び出されるメソッド
     @objc private func batteryStateChanged(notification: Notification) {
+        // 給電が停止したら録画を停止する
         if recordingInProgress && UIDevice.current.batteryState == .unplugged && Config.default.autoStopEnabled{
             stopRecording()
         }
@@ -499,21 +560,25 @@ extension MainViewController {
 // 設定
 extension MainViewController {
     
+    // 設定変更の監視を開始
     private func startConfigurationMonitoring() {
         NotificationCenter.default.addObserver(self, selector: #selector(MainViewController.configurationLoaded(notification:)), name: Config.ConfigurationLoaded, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(MainViewController.configurationSaved(notification:)), name: Config.ConfigurationSaved, object: nil)
         Config.default.load()
     }
     
+    // 設定変更の監視を終了
     private func stopConfigurationMonitoring() {
         NotificationCenter.default.removeObserver(self, name: Config.ConfigurationLoaded, object: nil)
         NotificationCenter.default.removeObserver(self, name: Config.ConfigurationSaved, object: nil)
     }
     
+    // 設定が読み込まれた時に呼び出されるメソッド
     @objc private func configurationLoaded(notification: Notification) {
         updateDisplay()
     }
     
+    // 設定が保存された時に呼び出されるメソッド
     @objc private func configurationSaved(notification: Notification) {
         resetCaptureDevice()
         updateDisplay()
@@ -521,7 +586,7 @@ extension MainViewController {
             startCaptureSession()
         }
     }
-    
+    // 設定内容を画面に反映する
     private func updateDisplay() {
         if Config.default.recordAudio {
             audioStateImage.setImage(UIImage(named: "icon_audio_on"), for: .normal)
@@ -544,7 +609,7 @@ extension MainViewController {
 // 空き容量
 extension MainViewController {
     
-    
+    // ストレージの空き容量表示を定期的に更新するためのタイマーの開始
     private func startFreeStorageMonitoring() {
         storageMonitoringTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true, block: { (timer) in
             let freeStorageSize = self.calculateFreeStorage()
@@ -553,6 +618,7 @@ extension MainViewController {
         storageMonitoringTimer.fire()
     }
     
+    // ストレージの空き容量表示を定期的に更新するためのタイマーの停止
     private func stopFreeStorageMonitoring() {
         storageMonitoringTimer.invalidate()
     }
@@ -569,6 +635,7 @@ extension MainViewController {
     }
 }
 
+// 画面に表示する時刻を更新するためのタイマー
 extension MainViewController {
     
     private func startTimer() {
