@@ -28,6 +28,7 @@ struct Constants {
     static let VideoFrameRate25fps = Int32(25)
     static let VideoFrameRate30fps = Int32(30)
     static let VideoFrameRate60fps = Int32(60)
+    static let DefaultFrameRate = VideoFrameRate30fps
 }
 
 class Config: NSObject {
@@ -63,7 +64,7 @@ class Config: NSObject {
         NotificationCenter.default.post(name: Config.ConfigurationLoaded, object: self)
     }
     
-    func save() {
+    func silentSave() {
         let defaults = UserDefaults.standard
         defaults.set(autoStartEnabled, forKey: Constants.AutoStartEnabledKey)
         defaults.set(autoStopEnabled, forKey: Constants.AutoStopEnabledKey)
@@ -74,7 +75,10 @@ class Config: NSObject {
         index = availableVideoQualities.index(of: videoQuality)
         defaults.set(index, forKey: Constants.VideoQualityKey)
         defaults.set(frameRate, forKey: Constants.VideoFrameRateKey)
-        
+    }
+    
+    func save() {
+        silentSave()
         NotificationCenter.default.post(name: Config.ConfigurationSaved, object: self)
     }
 }

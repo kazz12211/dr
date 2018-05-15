@@ -375,6 +375,14 @@ extension MainViewController {
     private func configureCaptureDevice() {
         do {
             try self.videoDevice.lockForConfiguration()
+            let frameRateRanges =  videoDevice.activeFormat.videoSupportedFrameRateRanges
+            for frameRate in frameRateRanges {
+                if Config.default.frameRate < Int32(frameRate.minFrameRate) || Config.default.frameRate > Int32(frameRate.maxFrameRate) {
+                    Config.default.frameRate = Constants.DefaultFrameRate
+                    Config.default.silentSave()
+                    updateDisplay()
+                }
+            }
             self.videoDevice.activeVideoMinFrameDuration = CMTime(value: 1, timescale: Config.default.frameRate)
             // 暗いところでの明るさブースト
             if self.videoDevice.isLowLightBoostEnabled {
