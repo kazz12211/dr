@@ -141,6 +141,17 @@ class MainViewController: UIViewController {
         }
     }
     
+    @IBAction func doFocus(_ gestureRecognizer: UITapGestureRecognizer) {
+        if videoInput != nil {
+            let device = videoInput.device
+            do {
+                try device.lockForConfiguration()
+                focus()
+                device.unlockForConfiguration()
+            } catch {}
+        }
+    }
+    
     func startRecording() {
         if authorized {
             recordingInProgress = videoWriter.start()
@@ -333,7 +344,8 @@ extension MainViewController {
     private func takePhoto() {
         videoWriter.takeStillImage()
     }
-
+    
+    
 }
 
 // ビデオ関連
@@ -343,21 +355,24 @@ extension MainViewController {
     // AVCaptureSessionの設定
     private func setupCaptureSession() {
         captureSession = AVCaptureSession()
-        captureSession.sessionPreset = Config.default.videoQuality
     }
     
     // キャプチャーデバイスをAVCaptureSessionに追加する
     private func setupCaptureDevice() {
+        captureSession.beginConfiguration()
+        removeVideoDevice()
+        removeAudioDevice()
         addVideoDevice()
         
         if Config.default.recordAudio {
             addAudioDevice()
         }
+        captureSession.sessionPreset = Config.default.videoQuality
+        captureSession.commitConfiguration()
     }
     
     // カメラの設定
     private func configureCaptureDevice() {
-        DispatchQueue.global(qos: .userInitiated).async {
         do {
             try self.videoDevice.lockForConfiguration()
             self.videoDevice.activeVideoMinFrameDuration = CMTime(value: 1, timescale: Config.default.frameRate)
@@ -365,29 +380,36 @@ extension MainViewController {
             if self.videoDevice.isLowLightBoostEnabled {
                 self.videoDevice.automaticallyEnablesLowLightBoostWhenAvailable = true
             }
-            // フォーカス設定
-            // 画面の中心にオートフォーカス
-            if self.videoDevice.isFocusModeSupported(.autoFocus) && self.videoDevice.isFocusPointOfInterestSupported {
-                self.videoDevice.focusPointOfInterest = CGPoint(x: 0.5, y: 0.5)
-                self.videoDevice.focusMode = .autoFocus
-            }
-            
-            // 露出の設定
-            // 画面の中心に露出を合わせる
-            if self.videoDevice.isExposureModeSupported(.continuousAutoExposure) && self.videoDevice.isExposurePointOfInterestSupported {
-                // 露出をロックしたい時
-                //self.adjustingExposure = true
-                self.videoDevice.exposurePointOfInterest = CGPoint(x: 0.5, y: 0.5)
-                self.videoDevice.exposureMode = .continuousAutoExposure
-            }
             // Video HDRの設定
             if self.videoDevice.isVideoHDREnabled {
                 self.videoDevice.isVideoHDREnabled = true
             }
+            
+            // フォーカス設定
+            self.focus()
+            
             self.videoDevice.unlockForConfiguration()
         } catch {
             
         }
+    }
+    
+    // フォーカス設定
+    private func focus() {
+        // フォーカス設定
+        // 画面の中心にオートフォーカス
+        if self.videoDevice.isFocusModeSupported(.autoFocus) && self.videoDevice.isFocusPointOfInterestSupported {
+            self.videoDevice.focusPointOfInterest = CGPoint(x: 0.5, y: 0.5)
+            self.videoDevice.focusMode = .autoFocus
+        }
+        
+        // 露出の設定
+        // 画面の中心に露出を合わせる
+        if self.videoDevice.isExposureModeSupported(.continuousAutoExposure) && self.videoDevice.isExposurePointOfInterestSupported {
+            // 露出をロックしたい時
+            //self.adjustingExposure = true
+            self.videoDevice.exposurePointOfInterest = CGPoint(x: 0.5, y: 0.5)
+            self.videoDevice.exposureMode = .continuousAutoExposure
         }
     }
     
@@ -396,8 +418,6 @@ extension MainViewController {
         if captureSession.isRunning {
             stopCaptureSession()
         }
-        removeVideoDevice()
-        removeAudioDevice()
         setupCaptureDevice()
     }
     
@@ -468,6 +488,7 @@ extension MainViewController {
         
         previewView.bringSubview(toFront: headerView)
         previewView.bringSubview(toFront: footerView)
+        previewView.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(doFocus(_:))))
     }
     
     // ビデオ書き込みの準備

@@ -41,18 +41,22 @@ class VideoWriter : NSObject {
     
     private func setupVideoOutput() {
         videoOutput = AVCaptureVideoDataOutput()
+
+        if let videoConnection = videoOutput.connection(with: .video) {
+            // Videoの向き設定
+            if videoConnection.isVideoOrientationSupported {
+                videoConnection.videoOrientation = .landscapeRight
+            }
+            // Video安定化設定
+            if videoConnection.isVideoStabilizationSupported {
+                videoConnection.preferredVideoStabilizationMode = .cinematic
+            }
+       }
         videoOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey: Int(kCVPixelFormatType_32BGRA)] as [String : Any]
         videoOutput.alwaysDiscardsLateVideoFrames = true
         let queue = DispatchQueue(label: "VideoQueue")
         videoOutput.setSampleBufferDelegate(self, queue: queue)
         captureSession.addOutput(videoOutput)
-        
-        // Video安定化設定
-        if let videoConnection: AVCaptureConnection = videoOutput.connection(with: .video) {
-            if videoConnection.isVideoStabilizationSupported {
-                videoConnection.preferredVideoStabilizationMode = .cinematic
-            }
-        }
     }
     
     private func setupAudioOutput() {

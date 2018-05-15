@@ -8,6 +8,7 @@
 //
 
 import UIKit
+import AVFoundation
 
 class PlaylistViewController: UIViewController {
 
@@ -65,9 +66,12 @@ extension PlaylistViewController: UITableViewDataSource {
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         let viewController = storyboard?.instantiateViewController(withIdentifier: "player") as! PlayerViewController
         let url = videoFiles[indexPath.row]
-        viewController.setURL(url)
-        let nav = UINavigationController(rootViewController: viewController)
-        present(nav, animated: true, completion: nil)
+        let asset = AVAsset(url:url)
+        if asset.duration.seconds > 0 {
+            viewController.setURL(url)
+            let nav = UINavigationController(rootViewController: viewController)
+            present(nav, animated: true, completion: nil)
+        }
     }
 }
 
