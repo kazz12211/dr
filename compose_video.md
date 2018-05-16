@@ -1,4 +1,4 @@
-## ビデオ映像にテキストを重ねて保存する方法 (iOS & Swift)
+## ビデオ映像にテキストを合成して保存する方法 (iOS & Swift)
 
 AVCaptureVideoDataOutputとAVAssetWriterを使ったビデオキャプチャー。
 
