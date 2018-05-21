@@ -26,6 +26,8 @@ class VideoWriter : NSObject {
     var recordingInProgress: Bool = false
     var startTime: CMTime!
     var endTime: CMTime!
+    var videoQueue: DispatchQueue!
+    var audioQueue: DispatchQueue!
 
     init(session: AVCaptureSession) {
         super.init()
@@ -33,11 +35,26 @@ class VideoWriter : NSObject {
         captureSession = session
         config = Config.default
         
+        captureSession.beginConfiguration()
         setupVideoOutput()
         setupAudioOutput()
         setupImageOutput()
+        captureSession.commitConfiguration()
     }
     
+    
+    private func clear() {
+        captureSession.beginConfiguration()
+        captureSession.removeOutput(videoOutput)
+        if audioOutput != nil {
+            captureSession.removeOutput(audioOutput)
+        }
+        captureSession.removeOutput(imageOutput)
+        captureSession.commitConfiguration()
+        videoOutput = nil
+        audioOutput = nil
+        imageOutput = nil
+    }
     
     private func setupVideoOutput() {
         videoOutput = AVCaptureVideoDataOutput()
@@ -54,16 +71,20 @@ class VideoWriter : NSObject {
        }
         videoOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey: Int(kCVPixelFormatType_32BGRA)] as [String : Any]
         videoOutput.alwaysDiscardsLateVideoFrames = true
-        let queue = DispatchQueue(label: "VideoQueue")
-        videoOutput.setSampleBufferDelegate(self, queue: queue)
+        if videoQueue == nil {
+            videoQueue = DispatchQueue(label: "VideoQueue")
+        }
+        videoOutput.setSampleBufferDelegate(self, queue: videoQueue)
         captureSession.addOutput(videoOutput)
     }
     
     private func setupAudioOutput() {
         if config.recordAudio {
             audioOutput = AVCaptureAudioDataOutput()
-            let queue = DispatchQueue(label: "AudioQueue")
-            audioOutput.setSampleBufferDelegate(self, queue: queue)
+            if audioQueue == nil {
+                audioQueue = DispatchQueue(label: "AudioQueue")
+            }
+            audioOutput.setSampleBufferDelegate(self, queue: audioQueue)
             captureSession.addOutput(audioOutput)
         }
     }
@@ -116,10 +137,14 @@ class VideoWriter : NSObject {
                 audioAssetInput.expectsMediaDataInRealTime = true
                 assetWriter.add(audioAssetInput)
             }
-            assetWriter.startWriting()
-            assetWriter.startSession(atSourceTime: kCMTimeZero)
-            recordingInProgress = true
-            return true
+            endTime = kCMTimeZero
+            if assetWriter.startWriting() {
+                assetWriter.startSession(atSourceTime: kCMTimeZero)
+                recordingInProgress = true
+            } else {
+                recordingInProgress = false
+            }
+            return recordingInProgress
         } catch {
             print("could not start video recording ", error)
             return false
@@ -135,12 +160,13 @@ class VideoWriter : NSObject {
                 audioAssetInput.markAsFinished()
             }
             //assetWriter.endSession(atSourceTime: CMTimeMake(frameNumber, config.frameRate))
+            self.recordingInProgress = false
             assetWriter.endSession(atSourceTime: endTime)
             assetWriter.finishWriting {
-                //self.pixelBuffer = nil
+                self.pixelBuffer = nil
                 self.videoAssetInput = nil
                 self.audioAssetInput = nil
-                self.recordingInProgress = false
+                self.clear()
             }
         }
     }
@@ -169,11 +195,11 @@ extension VideoWriter : AVCapturePhotoCaptureDelegate {
         PHPhotoLibrary.shared().performChanges({
             let creationRequest = PHAssetCreationRequest.forAsset()
             creationRequest.addResource(with: .photo, data: photo.fileDataRepresentation()!, options: nil)
-        }) { (success, error) in
+        }) { (success, failure) in
             if success {
                 print("Photo saved")
             } else {
-                print("Could not save photo: ", error)
+                print("Could not save photo: \(String(describing: failure))")
             }
         }
     }
@@ -276,24 +302,34 @@ extension VideoWriter : AVCaptureVideoDataOutputSampleBufferDelegate, AVCaptureA
         }
         let timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
         let frameTime = CMTimeSubtract(timestamp, startTime)
+        endTime = frameTime
 
         let isVideo = output is AVCaptureVideoDataOutput
         
+        if assetWriter.status != .writing {
+            return
+        }
+
         if isVideo {
             if videoAssetInput.isReadyForMoreMediaData {
                 let pxBuffer:CVPixelBuffer = composeVideo(buffer: sampleBuffer)
                 //guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
                 //pixelBuffer.append(imageBuffer, withPresentationTime: CMTimeMake(frameNumber, config.frameRate))
-                pixelBuffer.append(pxBuffer, withPresentationTime: frameTime)
+                videoQueue!.async {
+                    if self.pixelBuffer != nil {
+                        self.pixelBuffer.append(pxBuffer, withPresentationTime: frameTime)
+                    }
+                }
                 //pixelBuffer.append(pxBuffer, withPresentationTime: CMTimeMake(frameNumber, config.frameRate))
                 frameNumber += 1
             }
         } else {
             if audioAssetInput.isReadyForMoreMediaData {
-                audioAssetInput.append(sampleBuffer)
+                audioQueue!.async {
+                    self.audioAssetInput.append(sampleBuffer)
+                }
             }
         }
-        endTime = frameTime
     }
 }
 

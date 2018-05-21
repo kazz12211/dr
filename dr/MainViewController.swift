@@ -37,25 +37,9 @@ class MainViewController: UIViewController {
     var timestampFormatter: DateFormatter = DateFormatter()
     var locationManager: CLLocationManager!
     var motionManager: CMMotionManager!
-    var recordingInProgress: Bool = false
-    
-    var previewLayer: AVCaptureVideoPreviewLayer!
-    var captureSession: AVCaptureSession!
-    var videoDevice: AVCaptureDevice!
-    var audioDevice: AVCaptureDevice!
-    var videoInput: AVCaptureDeviceInput!
-    var audioInput: AVCaptureDeviceInput!
-    
-    var videoWriter: VideoWriter!
- 
     var initialVolume: Float = 0.0
-    
-    var authorized: Bool = false
-    
     var volumeView: MPVolumeView!
-    
-    // 露出をロックしたい時
-    //var adjustingExposure: Bool = false
+    var recorder: DriveRecorder!
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -73,28 +57,12 @@ class MainViewController: UIViewController {
         // 加速度センサーの監視を開始する
         startMotion()
         
-        // カメラの使用確認
-        checkCameraAuthorization { (authorized) in
-            if authorized {
-                // キャプチャーセッションの設定
-                self.setupCaptureSession()
-                // キャプチャー入力デバイスの設定
-                // バックカメラとビルトインマイクを使用する
-                self.setupCaptureDevice()
-                // キャプチャー映像を表示するビューを設定する
-                self.setupPreviewLayer()
-                // フォトアルバムへのアクセス権を確認
-                self.checkPhotoLibraryAuthorization({ (authorized) in
-                    if authorized {
-                        // ビデオの書き出し設定
-                        self.setupVideoWriter()
-                        // 画面の更新
-                        self.updateState()
-                        self.authorized = authorized
-                    }
-                })
-            }
-        }
+        recorder = DriveRecorder()
+        recorder.setup(inView: previewView)
+        previewView.bringSubview(toFront: headerView)
+        previewView.bringSubview(toFront: footerView)
+        previewView.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(doFocus(_:))))
+
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -103,19 +71,17 @@ class MainViewController: UIViewController {
         startListeningVolumeButton()
         // バッテリー残量の表示
         displayBatteryLevel()
-        if authorized {
-            if !captureSession.isRunning {
-                // キプチャーセッションの開始
-                captureSession.startRunning()
-            }
+        
+        if recorder.authorized {
+            recorder.startRunning()
         }
     }
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        if authorized {
-            // キャプチャー入力デバイスの再設定
-            configureCaptureDevice()
+        
+        if recorder.authorized {
+            recorder.configurationChanged()
         }
     }
     
@@ -123,116 +89,49 @@ class MainViewController: UIViewController {
         super.viewWillDisappear(animated)
         // ボリュームボタンの監視を終了する
         stopListeningVolumeButton()
-        if authorized {
-            if captureSession.isRunning {
-                // キャプチャーセッションの停止
-                captureSession.stopRunning()
-            }
+        
+        if recorder.authorized {
+            recorder.stopRunning()
         }
     }
 
     @IBAction func recordButtonTapped(_ sender: Any) {
-        if recordingInProgress {
-            stopRecording()
+        if recorder.recordingInProgress {
+            recorder.stopRecording { updateState() }
         } else {
-            startRecording()
+            recorder.startRecording { updateState() }
         }
     }
     
     @IBAction func doFocus(_ gestureRecognizer: UITapGestureRecognizer) {
-        if videoInput != nil {
-            let device = videoInput.device
-            do {
-                try device.lockForConfiguration()
-                focus()
-                device.unlockForConfiguration()
-            } catch {}
+        if recorder.authorized {
+            recorder.doFocus { (error) in }
         }
-    }
-    
-    func startRecording() {
-        if authorized {
-            recordingInProgress = videoWriter.start()
-        }
-        updateState()
-    }
-    
-    func stopRecording() {
-        if authorized {
-            videoWriter.stop()
-        }
-        recordingInProgress = false
-        updateState()
     }
     
     private func updateState() {
-        configButton.isEnabled = !recordingInProgress
-        playlistButton.isEnabled = !recordingInProgress
-        freeStorageLabel.textColor = recordingInProgress ? UIColor.orange : UIColor.white
-        batteryStateLabel.textColor = recordingInProgress ? UIColor.orange : UIColor.white
-        timeLabel.textColor = recordingInProgress ? UIColor.orange : UIColor.white
-        speedLabel.textColor = recordingInProgress ? UIColor.orange : UIColor.white
-        locationLabel.textColor = recordingInProgress ? UIColor.orange : UIColor.white
-        frameRateLabel.textColor = recordingInProgress ? UIColor.orange : UIColor.white
-        videoQualityLabel.textColor = recordingInProgress ? UIColor.orange : UIColor.white
-        audioStateImage.tintColor = recordingInProgress ? UIColor.orange : UIColor.white
+        configButton.isEnabled = !recorder.recordingInProgress
+        playlistButton.isEnabled = !recorder.recordingInProgress
+        freeStorageLabel.textColor = recorder.recordingInProgress ? UIColor.orange : UIColor.white
+        batteryStateLabel.textColor = recorder.recordingInProgress ? UIColor.orange : UIColor.white
+        timeLabel.textColor = recorder.recordingInProgress ? UIColor.orange : UIColor.white
+        speedLabel.textColor = recorder.recordingInProgress ? UIColor.orange : UIColor.white
+        locationLabel.textColor = recorder.recordingInProgress ? UIColor.orange : UIColor.white
+        frameRateLabel.textColor = recorder.recordingInProgress ? UIColor.orange : UIColor.white
+        videoQualityLabel.textColor = recorder.recordingInProgress ? UIColor.orange : UIColor.white
+        audioStateImage.tintColor = recorder.recordingInProgress ? UIColor.orange : UIColor.white
         
-        if recordingInProgress {
+        if recorder.recordingInProgress {
             recordButton.setImage(UIImage(named: "icon_stop"), for: .normal)
         } else {
             recordButton.setImage(UIImage(named: "icon_record"), for: .normal)
         }
         
-        timeLabel.isHidden = !recordingInProgress
-        speedLabel.isHidden = !recordingInProgress
-        locationLabel.isHidden = !recordingInProgress
+        timeLabel.isHidden = !recorder.recordingInProgress
+        speedLabel.isHidden = !recorder.recordingInProgress
+        locationLabel.isHidden = !recorder.recordingInProgress
     }
     
-    // from Apple developer site
-    func checkCameraAuthorization(_ completionHandler: @escaping ((_ authorized: Bool) -> Void)) {
-        switch AVCaptureDevice.authorizationStatus(for: .video) {
-        case .authorized:
-            //The user has previously granted access to the camera.
-            completionHandler(true)
-            
-        case .notDetermined:
-            // The user has not yet been presented with the option to grant video access so request access.
-            AVCaptureDevice.requestAccess(for: .video, completionHandler: { success in
-                completionHandler(success)
-            })
-            
-        case .denied:
-            // The user has previously denied access.
-            completionHandler(false)
-            
-        case .restricted:
-            // The user doesn't have the authority to request access e.g. parental restriction.
-            completionHandler(false)
-        }
-    }
-    
-    // from Apple developer site
-    func checkPhotoLibraryAuthorization(_ completionHandler: @escaping ((_ authorized: Bool) -> Void)) {
-        switch PHPhotoLibrary.authorizationStatus() {
-        case .authorized:
-            // The user has previously granted access to the photo library.
-            completionHandler(true)
-            
-        case .notDetermined:
-            // The user has not yet been presented with the option to grant photo library access so request access.
-            PHPhotoLibrary.requestAuthorization({ status in
-                completionHandler((status == .authorized))
-            })
-            
-        case .denied:
-            // The user has previously denied access.
-            completionHandler(false)
-            
-        case .restricted:
-            // The user doesn't have the authority to request access e.g. parental restriction.
-            completionHandler(false)
-        }
-    }
     
     // 出力音量の変化とカメラ露出を監視する
     override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
@@ -257,23 +156,6 @@ class MainViewController: UIViewController {
             setVolume(initialVolume)
             AVAudioSession.sharedInstance().addObserver(self, forKeyPath: "outputVolume", options: .new, context: nil)
         }
-        // 露出をロックしたい場合
-        /*else if keyPath == "adjustingExposure" {
-            if !adjustingExposure {
-                return
-            }
-            
-            if (change?[NSKeyValueChangeKey.newKey] as! Bool) == false {
-                adjustingExposure = false
-                do {
-                    try videoDevice.lockForConfiguration()
-                    videoDevice.exposureMode = .locked
-                    videoDevice.unlockForConfiguration()
-                } catch {
-                    
-                }
-            }
-        }*/
     }
 }
 
@@ -325,178 +207,18 @@ extension MainViewController {
     
     // ドライブレコーダーが録画中なら静止画撮影、そうでなければドライブレコーダーの録画を開始
     private func volumeUp() {
-        if !recordingInProgress {
-            startRecording()
+        if !recorder.recordingInProgress {
+            recorder.startRecording { updateState() }
         } else {
-            takePhoto()
+            recorder.takePhoto()
         }
-    }
+   }
     
     // ドライブレコーダーの停止
     private func volumeDown() {
-        if recordingInProgress {
-            stopRecording()
+        if recorder.recordingInProgress {
+            recorder.stopRecording { updateState() }
         }
-    }
-    
-    private func takePhoto() {
-        videoWriter.takeStillImage()
-    }
-    
-    
-}
-
-// ビデオ関連
-
-extension MainViewController {
-    
-    // AVCaptureSessionの設定
-    private func setupCaptureSession() {
-        captureSession = AVCaptureSession()
-    }
-    
-    // キャプチャーデバイスをAVCaptureSessionに追加する
-    private func setupCaptureDevice() {
-        captureSession.beginConfiguration()
-        removeVideoDevice()
-        removeAudioDevice()
-        addVideoDevice()
-        
-        if Config.default.recordAudio {
-            addAudioDevice()
-        }
-        captureSession.sessionPreset = Config.default.videoQuality
-        captureSession.commitConfiguration()
-    }
-    
-    // カメラの設定
-    private func configureCaptureDevice() {
-        do {
-            try self.videoDevice.lockForConfiguration()
-            let frameRateRanges =  videoDevice.activeFormat.videoSupportedFrameRateRanges
-            for frameRate in frameRateRanges {
-                if Config.default.frameRate < Int32(frameRate.minFrameRate) || Config.default.frameRate > Int32(frameRate.maxFrameRate) {
-                    Config.default.frameRate = Constants.DefaultFrameRate
-                    Config.default.silentSave()
-                    updateDisplay()
-                }
-            }
-            self.videoDevice.activeVideoMinFrameDuration = CMTime(value: 1, timescale: Config.default.frameRate)
-            // 暗いところでの明るさブースト
-            if self.videoDevice.isLowLightBoostEnabled {
-                self.videoDevice.automaticallyEnablesLowLightBoostWhenAvailable = true
-            }
-            // Video HDRの設定
-            if self.videoDevice.isVideoHDREnabled {
-                self.videoDevice.isVideoHDREnabled = true
-            }
-            
-            // フォーカス設定
-            self.focus()
-            
-            self.videoDevice.unlockForConfiguration()
-        } catch {
-            
-        }
-    }
-    
-    // フォーカス設定
-    private func focus() {
-        // フォーカス設定
-        // 画面の中心にオートフォーカス
-        if self.videoDevice.isFocusModeSupported(.autoFocus) && self.videoDevice.isFocusPointOfInterestSupported {
-            self.videoDevice.focusPointOfInterest = CGPoint(x: 0.5, y: 0.5)
-            self.videoDevice.focusMode = .autoFocus
-        }
-        
-        // 露出の設定
-        // 画面の中心に露出を合わせる
-        if self.videoDevice.isExposureModeSupported(.continuousAutoExposure) && self.videoDevice.isExposurePointOfInterestSupported {
-            // 露出をロックしたい時
-            //self.adjustingExposure = true
-            self.videoDevice.exposurePointOfInterest = CGPoint(x: 0.5, y: 0.5)
-            self.videoDevice.exposureMode = .continuousAutoExposure
-        }
-    }
-    
-    // キャプチャーデバイスの再構成
-    private func resetCaptureDevice() {
-        setupCaptureDevice()
-    }
-    
-    // ビデオ入力デバイス（バックカメラ）をAVCaptureSessionに追加する
-    private func addVideoDevice() {
-        let discoverSession = AVCaptureDevice.DiscoverySession.init(deviceTypes: [.builtInWideAngleCamera], mediaType: .video, position: .back)
-        let devices = discoverSession.devices
-        
-        videoDevice = devices.first
-        
-        // 露出をロックしたい場合
-        //videoDevice.addObserver(self, forKeyPath: "adjustingExposure", options: .new, context: nil)
-        configureCaptureDevice()
-        
-        do {
-            videoInput = try AVCaptureDeviceInput(device: videoDevice)
-            if captureSession.canAddInput(videoInput) {
-                captureSession.addInput(videoInput)
-            }
-        } catch {
-            print("cannot setup video input device", error)
-        }
-    }
-    
-    // ビデオ入力デバイス（バックカメラ）をAVCaptureSessionから取り除く
-    private func removeVideoDevice() {
-        if videoInput != nil {
-            captureSession.removeInput(videoInput)
-            videoInput = nil
-            videoDevice = nil
-        }
-    }
-    
-    // オーディオ入力デバイス（ビルトインマイク）をAVCaptureSessionに追加する
-    // Bluetoothヘッドセットを使うと、ヘッドセットのマイクが使われる
-    private func addAudioDevice() {
-        audioDevice = AVCaptureDevice.default(.builtInMicrophone, for: .audio, position: .unspecified)
-        do {
-            audioInput = try AVCaptureDeviceInput(device: audioDevice)
-            if captureSession.canAddInput(audioInput) {
-                captureSession.addInput(audioInput)
-            }
-        } catch {
-            print("cannot setup audio input device", error)
-        }
-    }
-    
-    // オーディオ入力デバイス（ビルトインマイク）をAVCaptureSessionから取り除く
-    private func removeAudioDevice() {
-        if audioInput != nil {
-            captureSession.removeInput(audioInput)
-            audioInput = nil
-            audioDevice = nil
-        }
-    }
-
-    // AVCaptureSessionのプレビュー画面の設定
-    private func setupPreviewLayer() {
-        previewLayer = AVCaptureVideoPreviewLayer(session: captureSession)
-        previewLayer.backgroundColor = UIColor.black.cgColor
-        previewLayer.videoGravity = .resizeAspectFill
-        previewLayer.frame = previewView.bounds
-        previewView.layer.addSublayer(previewLayer)
-        
-        if let previewLayerConnection = previewLayer.connection {
-            previewLayerConnection.videoOrientation = .landscapeRight
-        }
-        
-        previewView.bringSubview(toFront: headerView)
-        previewView.bringSubview(toFront: footerView)
-        previewView.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(doFocus(_:))))
-    }
-    
-    // ビデオ書き込みの準備
-    private func setupVideoWriter() {
-        videoWriter = VideoWriter(session: captureSession)
     }
     
 }
@@ -541,9 +263,10 @@ extension MainViewController: CLLocationManagerDelegate {
             speedLabel.text = "".appendingFormat("%.fkm/h", DriveInfo.singleton.speed)
             locationLabel.text = "".appendingFormat("%.4f  %.4f  %.0fm", DriveInfo.singleton.latitude, DriveInfo.singleton.longitude, DriveInfo.singleton.altitude)
             
-            // 設定速度（ConfigのautoStartSpeed）に達したら録画を開始する
-            if speed >= Config.default.autoStartSpeed && Config.default.autoStartEnabled && !recordingInProgress {
-                startRecording()
+            if speed >= Config.default.autoStartSpeed && Config.default.autoStartEnabled && !recorder.recordingInProgress {
+                recorder.startRecording {
+                    updateState()
+                }
             }
         }
     }
@@ -566,8 +289,10 @@ extension MainViewController {
                 }
                 // 衝撃を受けたら録画開始
                 if fabs(data.acceleration.y) > Config.default.gsensorSensibility || fabs(data.acceleration.z) > Config.default.gsensorSensibility {
-                    if !self.recordingInProgress {
-                        self.startRecording()
+                    if !self.recorder.recordingInProgress {
+                        self.recorder.startRecording {
+                            self.updateState()
+                        }
                     }
                 }
             });
@@ -605,8 +330,10 @@ extension MainViewController {
     // バッテリーの充電状態が変化したら呼び出されるメソッド
     @objc private func batteryStateChanged(notification: Notification) {
         // 給電が停止したら録画を停止する
-        if recordingInProgress && UIDevice.current.batteryState == .unplugged && Config.default.autoStopEnabled{
-            stopRecording()
+        if recorder.recordingInProgress && UIDevice.current.batteryState == .unplugged && Config.default.autoStopEnabled{
+            recorder.stopRecording {
+                updateState()
+            }
         }
     }
 }
@@ -634,12 +361,14 @@ extension MainViewController {
     
     // 設定が保存された時に呼び出されるメソッド
     @objc private func configurationSaved(notification: Notification) {
-        if captureSession.isRunning {
-            captureSession.stopRunning()
+        if recorder.authorized {
+            recorder.stopRunning()
         }
-        resetCaptureDevice()
+        recorder.configurationChanged()
         updateDisplay()
-        captureSession.startRunning()
+        if recorder.authorized {
+            recorder.startRunning()
+        }
     }
     // 設定内容を画面に反映する
     private func updateDisplay() {
@@ -670,7 +399,9 @@ extension MainViewController {
             let freeStorageSize = self.calculateFreeStorage()
             self.freeStorageLabel.text = "".appendingFormat("%.0fGB", freeStorageSize.doubleValue)
             if freeStorageSize.doubleValue <= 1.0 {
-                self.stopRecording()
+                if self.recorder.recordingInProgress {
+                    self.recorder.stopRecording { self.updateState() }
+                }
             }
         })
         storageMonitoringTimer.fire()
