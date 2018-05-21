@@ -20,13 +20,12 @@ class DriveRecorder : NSObject {
     var videoWriter: VideoWriter!
     var authorized: Bool = false
     var adjustingExposure: Bool = false
-    var quality: AVCaptureSession.Preset?
-    var fps: Int32?
     
     override init() {
         super.init()
         
         captureSession = AVCaptureSession()
+        captureSession.sessionPreset = Config.default.videoQuality
         
         self.checkCameraAuthorization { (authorized) in
             self.checkPhotoLibraryAuthorization({ (authorized) in
@@ -38,31 +37,36 @@ class DriveRecorder : NSObject {
     func setup(inView previewView: UIView) {
         setupRecorder()
         setupPreviewLayer(inView: previewView)
+        setupWriter()
     }
     
     func startRunning() {
-        captureSession.startRunning()
+        if !captureSession.isRunning {
+            captureSession.startRunning()
+        }
     }
     
     func stopRunning() {
-        captureSession.stopRunning()
+        if captureSession.isRunning {
+            captureSession.stopRunning()
+        }
     }
     
     func configurationChanged() {
         captureSession.beginConfiguration()
         removeCamera()
         removeMicrophone()
+        addCamera()
+        addMicrophone()
         captureSession.commitConfiguration()
-        setupRecorder()
     }
     
     func startRecording(_ completionHandler: () -> Void) {
         doFocus { (error) in
             if error != nil {
-                print(error)
+                print(error as Any)
             }
         }
-        videoWriter = VideoWriter(session: captureSession)
         recordingInProgress = videoWriter.start()
         completionHandler()
     }
@@ -70,7 +74,6 @@ class DriveRecorder : NSObject {
     func stopRecording(_ completionHandler: () -> Void) {
         videoWriter.stop()
         recordingInProgress = false
-        videoWriter = nil
         completionHandler()
     }
     
@@ -84,6 +87,7 @@ class DriveRecorder : NSObject {
             do {
                 try device.lockForConfiguration()
                 focus(.autoFocus)
+                exposure(.continuousAutoExposure)
                 device.unlockForConfiguration()
             } catch {
                 withError(error)
@@ -129,7 +133,7 @@ extension DriveRecorder {
         if videoDevice != nil {
             // 露出をロックしたい場合
             //videoDevice.addObserver(self, forKeyPath: "adjustingExposure", options: .new, context: nil)
-            configureCamera(quality: Config.default.videoQuality, fps: Config.default.frameRate) { (error) in
+            configureCamera { (error) in
                 if error == nil {
                     do {
                         self.videoInput = try AVCaptureDeviceInput(device: self.videoDevice)
@@ -140,6 +144,7 @@ extension DriveRecorder {
                         print("cannot setup video input device: \(error)")
                     }
                 }
+
             }
         }
         
@@ -173,24 +178,19 @@ extension DriveRecorder {
         }
     }
     
-    private func configureCamera(quality: AVCaptureSession.Preset, fps: Int32, _ completionHandler: @escaping ((_ error: Error?) -> Void)) {
+    private func configureCamera(_ completionHandler: @escaping ((_ error: Error?) -> Void)) {
         do {
             try videoDevice.lockForConfiguration()
             
-            self.fps = fps
-            self.quality = quality
-
-            captureSession.sessionPreset = self.quality!
-
             let frameRateRanges =  videoDevice.activeFormat.videoSupportedFrameRateRanges
-            for frameRate in frameRateRanges {
+            if let frameRate = frameRateRanges.first {
                 if Config.default.frameRate < Int32(frameRate.minFrameRate) || Config.default.frameRate > Int32(frameRate.maxFrameRate) {
-                    self.fps = Constants.DefaultFrameRate
-                    Config.default.frameRate = self.fps!
+                    Config.default.frameRate = Constants.DefaultFrameRate
                     Config.default.silentSave()
                 }
             }
-            videoDevice.activeVideoMinFrameDuration = CMTime(value: 1, timescale: self.fps!);
+            
+            videoDevice.activeVideoMinFrameDuration = CMTime(value: 1, timescale: Config.default.frameRate);
             
             lowLightBoost(true)
             
@@ -202,7 +202,7 @@ extension DriveRecorder {
 
             videoDevice.unlockForConfiguration()
             
-            
+
             completionHandler(nil)
         } catch {
             completionHandler(error)

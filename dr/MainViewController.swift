@@ -80,9 +80,7 @@ class MainViewController: UIViewController {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         
-        if recorder.authorized {
-            recorder.configurationChanged()
-        }
+        recorder.doFocus { (error) in }
     }
     
     override func viewWillDisappear(_ animated: Bool) {

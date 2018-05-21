@@ -21,7 +21,6 @@ class VideoWriter : NSObject {
     var audioAssetInput: AVAssetWriterInput!
     var pixelBuffer: AVAssetWriterInputPixelBufferAdaptor!
     var frameNumber: Int64 = 0
-    var config: Config!
     var captureSession: AVCaptureSession!
     var recordingInProgress: Bool = false
     var startTime: CMTime!
@@ -33,7 +32,6 @@ class VideoWriter : NSObject {
         super.init()
         
         captureSession = session
-        config = Config.default
         
         captureSession.beginConfiguration()
         setupVideoOutput()
@@ -75,25 +73,31 @@ class VideoWriter : NSObject {
             videoQueue = DispatchQueue(label: "VideoQueue")
         }
         videoOutput.setSampleBufferDelegate(self, queue: videoQueue)
-        captureSession.addOutput(videoOutput)
+        if captureSession.canAddOutput(videoOutput) {
+            captureSession.addOutput(videoOutput)
+        }
     }
     
     private func setupAudioOutput() {
-        if config.recordAudio {
+        if Config.default.recordAudio {
             audioOutput = AVCaptureAudioDataOutput()
             if audioQueue == nil {
                 audioQueue = DispatchQueue(label: "AudioQueue")
             }
             audioOutput.setSampleBufferDelegate(self, queue: audioQueue)
-            captureSession.addOutput(audioOutput)
+            if captureSession.canAddOutput(audioOutput) {
+                captureSession.addOutput(audioOutput)
+            }
         }
     }
     
     private func setupImageOutput() {
         imageOutput = AVCapturePhotoOutput()
-        captureSession.addOutput(imageOutput)
         if let photoConnection = imageOutput.connection(with: .video) {
             photoConnection.videoOrientation = .landscapeRight
+        }
+        if captureSession.canAddOutput(imageOutput) {
+            captureSession.addOutput(imageOutput)
         }
     }
     
@@ -104,8 +108,8 @@ class VideoWriter : NSObject {
         let filePath = documentPath + Date().filenameFromDate() + ".mp4"
         let url = URL(fileURLWithPath: filePath)
 
-        let width = config.videoQuality == Constants.VideoQualityHigh ? 1920 : config.videoQuality == Constants.VideoQualityMedium ? 1280 : 640
-        let height = config.videoQuality == Constants.VideoQualityHigh ? 1080 : config.videoQuality == Constants.VideoQualityMedium ? 720 : 480
+        let width = Config.default.videoQuality == Constants.VideoQualityHigh ? 1920 : Config.default.videoQuality == Constants.VideoQualityMedium ? 1280 : 640
+        let height = Config.default.videoQuality == Constants.VideoQualityHigh ? 1080 : Config.default.videoQuality == Constants.VideoQualityMedium ? 720 : 480
         let videoInputSettings = [
             AVVideoWidthKey: width,
             AVVideoHeightKey: height,
@@ -121,7 +125,7 @@ class VideoWriter : NSObject {
             try assetWriter = AVAssetWriter(outputURL: url, fileType: .mp4)
             videoAssetInput.expectsMediaDataInRealTime = true
             assetWriter.add(videoAssetInput)
-            if config.recordAudio {
+            if Config.default.recordAudio {
                 var acl = AudioChannelLayout()
                 bzero(&acl, MemoryLayout<AudioChannelLayout>.size)
                 acl.mChannelLayoutTag = kAudioChannelLayoutTag_Mono
@@ -159,14 +163,13 @@ class VideoWriter : NSObject {
             if audioAssetInput != nil {
                 audioAssetInput.markAsFinished()
             }
-            //assetWriter.endSession(atSourceTime: CMTimeMake(frameNumber, config.frameRate))
             self.recordingInProgress = false
             assetWriter.endSession(atSourceTime: endTime)
             assetWriter.finishWriting {
-                self.pixelBuffer = nil
+                //self.pixelBuffer = nil
                 self.videoAssetInput = nil
                 self.audioAssetInput = nil
-                self.clear()
+                //self.clear()
             }
         }
     }
@@ -315,19 +318,13 @@ extension VideoWriter : AVCaptureVideoDataOutputSampleBufferDelegate, AVCaptureA
                 let pxBuffer:CVPixelBuffer = composeVideo(buffer: sampleBuffer)
                 //guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
                 //pixelBuffer.append(imageBuffer, withPresentationTime: CMTimeMake(frameNumber, config.frameRate))
-                videoQueue!.async {
-                    if self.pixelBuffer != nil {
-                        self.pixelBuffer.append(pxBuffer, withPresentationTime: frameTime)
-                    }
-                }
+                self.pixelBuffer.append(pxBuffer, withPresentationTime: frameTime)
                 //pixelBuffer.append(pxBuffer, withPresentationTime: CMTimeMake(frameNumber, config.frameRate))
                 frameNumber += 1
             }
         } else {
             if audioAssetInput.isReadyForMoreMediaData {
-                audioQueue!.async {
-                    self.audioAssetInput.append(sampleBuffer)
-                }
+                self.audioAssetInput.append(sampleBuffer)
             }
         }
     }
