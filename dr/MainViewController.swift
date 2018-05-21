@@ -104,11 +104,9 @@ class MainViewController: UIViewController {
         // バッテリー残量の表示
         displayBatteryLevel()
         if authorized {
-            // キャプチャー入力デバイスの再設定
-            configureCaptureDevice()
             if !captureSession.isRunning {
                 // キプチャーセッションの開始
-                startCaptureSession()
+                captureSession.startRunning()
             }
         }
     }
@@ -128,7 +126,7 @@ class MainViewController: UIViewController {
         if authorized {
             if captureSession.isRunning {
                 // キャプチャーセッションの停止
-                stopCaptureSession()
+                captureSession.stopRunning()
             }
         }
     }
@@ -423,9 +421,6 @@ extension MainViewController {
     
     // キャプチャーデバイスの再構成
     private func resetCaptureDevice() {
-        if captureSession.isRunning {
-            stopCaptureSession()
-        }
         setupCaptureDevice()
     }
     
@@ -504,17 +499,6 @@ extension MainViewController {
         videoWriter = VideoWriter(session: captureSession)
     }
     
-    private func startCaptureSession() {
-        DispatchQueue.global(qos: .userInitiated).async {
-            self.captureSession.startRunning()
-        }
-    }
-    
-    private func stopCaptureSession() {
-        DispatchQueue.global(qos: .userInitiated).async {
-            self.captureSession.stopRunning()
-        }
-    }
 }
 
 // GPS関連
@@ -650,11 +634,12 @@ extension MainViewController {
     
     // 設定が保存された時に呼び出されるメソッド
     @objc private func configurationSaved(notification: Notification) {
+        if captureSession.isRunning {
+            captureSession.stopRunning()
+        }
         resetCaptureDevice()
         updateDisplay()
-        if !captureSession.isRunning {
-            startCaptureSession()
-        }
+        captureSession.startRunning()
     }
     // 設定内容を画面に反映する
     private func updateDisplay() {
