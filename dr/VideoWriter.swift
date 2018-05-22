@@ -40,20 +40,6 @@ class VideoWriter : NSObject {
         captureSession.commitConfiguration()
     }
     
-    
-    private func clear() {
-        captureSession.beginConfiguration()
-        captureSession.removeOutput(videoOutput)
-        if audioOutput != nil {
-            captureSession.removeOutput(audioOutput)
-        }
-        captureSession.removeOutput(imageOutput)
-        captureSession.commitConfiguration()
-        videoOutput = nil
-        audioOutput = nil
-        imageOutput = nil
-    }
-    
     private func setupVideoOutput() {
         videoOutput = AVCaptureVideoDataOutput()
 
@@ -166,10 +152,8 @@ class VideoWriter : NSObject {
             self.recordingInProgress = false
             assetWriter.endSession(atSourceTime: endTime)
             assetWriter.finishWriting {
-                //self.pixelBuffer = nil
                 self.videoAssetInput = nil
                 self.audioAssetInput = nil
-                //self.clear()
             }
         }
     }
@@ -296,7 +280,7 @@ extension VideoWriter {
 extension VideoWriter : AVCaptureVideoDataOutputSampleBufferDelegate, AVCaptureAudioDataOutputSampleBufferDelegate {
     
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
-        if !CMSampleBufferDataIsReady(sampleBuffer) || !recordingInProgress {
+        if !CMSampleBufferDataIsReady(sampleBuffer) || !recordingInProgress || assetWriter.status != .writing {
             return
         }
         
@@ -309,10 +293,6 @@ extension VideoWriter : AVCaptureVideoDataOutputSampleBufferDelegate, AVCaptureA
 
         let isVideo = output is AVCaptureVideoDataOutput
         
-        if assetWriter.status != .writing {
-            return
-        }
-
         if isVideo {
             if videoAssetInput.isReadyForMoreMediaData {
                 let pxBuffer:CVPixelBuffer = composeVideo(buffer: sampleBuffer)

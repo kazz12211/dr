@@ -86,7 +86,8 @@ class DriveRecorder : NSObject {
             let device = videoInput.device
             do {
                 try device.lockForConfiguration()
-                focus(.autoFocus)
+                whiteBalance(.continuousAutoWhiteBalance)
+                focus(.continuousAutoFocus)
                 exposure(.continuousAutoExposure)
                 device.unlockForConfiguration()
             } catch {
@@ -196,7 +197,9 @@ extension DriveRecorder {
             
             videoHDR(true)
             
-            focus(.autoFocus)
+            whiteBalance(.continuousAutoWhiteBalance)
+            
+            focus(.continuousAutoFocus)
             
             exposure(.continuousAutoExposure)
 
@@ -211,35 +214,42 @@ extension DriveRecorder {
     
     // 暗いところでの明るさブースト設定
     private func lowLightBoost(_ enabled: Bool) {
-        if self.videoDevice.isLowLightBoostEnabled {
-            self.videoDevice.automaticallyEnablesLowLightBoostWhenAvailable = enabled
+        if videoDevice.isLowLightBoostEnabled {
+            videoDevice.automaticallyEnablesLowLightBoostWhenAvailable = enabled
         }
     }
     
     // Video HDR設定
     private func videoHDR(_ enabled: Bool) {
-        if self.videoDevice.isVideoHDREnabled {
-            self.videoDevice.isVideoHDREnabled = enabled
+        if videoDevice.isVideoHDREnabled {
+            videoDevice.isVideoHDREnabled = enabled
         }
     }
 
     // フォーカス設定
     private func focus(_ mode: AVCaptureDevice.FocusMode) {
-        if self.videoDevice.isFocusModeSupported(.autoFocus) && self.videoDevice.isFocusPointOfInterestSupported {
+        if videoDevice.isFocusModeSupported(mode) && videoDevice.isFocusPointOfInterestSupported {
             // 画面の中心にオートフォーカス
-            self.videoDevice.focusPointOfInterest = CGPoint(x: 0.5, y: 0.5)
-            self.videoDevice.focusMode = mode
+            videoDevice.focusPointOfInterest = CGPoint(x: 0.5, y: 0.5)
+            videoDevice.focusMode = mode
         }
     }
 
+    // ホワイトバランス
+    private func whiteBalance(_ mode: AVCaptureDevice.WhiteBalanceMode) {
+        if videoDevice.isWhiteBalanceModeSupported(mode) {
+            videoDevice.whiteBalanceMode = mode
+        }
+    }
+    
     // 露出設定
     private func exposure(_ mode: AVCaptureDevice.ExposureMode) {
-        if self.videoDevice.isExposureModeSupported(.continuousAutoExposure) && self.videoDevice.isExposurePointOfInterestSupported {
+        if self.videoDevice.isExposureModeSupported(.continuousAutoExposure) && videoDevice.isExposurePointOfInterestSupported {
             // 露出をロックしたい時
             //self.adjustingExposure = true
             // 画面の中心に露出を合わせる
-            self.videoDevice.exposurePointOfInterest = CGPoint(x: 0.5, y: 0.5)
-            self.videoDevice.exposureMode = mode
+            videoDevice.exposurePointOfInterest = CGPoint(x: 0.5, y: 0.5)
+            videoDevice.exposureMode = mode
         }
     }
 }
