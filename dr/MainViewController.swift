@@ -124,10 +124,6 @@ class MainViewController: UIViewController {
         } else {
             recordButton.setImage(UIImage(named: "icon_record"), for: .normal)
         }
-        
-        timeLabel.isHidden = !recorder.recordingInProgress
-        speedLabel.isHidden = !recorder.recordingInProgress
-        locationLabel.isHidden = !recorder.recordingInProgress
     }
     
     

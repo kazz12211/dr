@@ -222,13 +222,16 @@ extension VideoWriter {
         return image
     }
     
-    private func pixelBufferFromUIImage(image: UIImage) -> CVPixelBuffer {
+    private func pixelBufferFromUIImage(image: UIImage) -> CVPixelBuffer? {
         let cgImage = image.cgImage!
         let options = [kCVPixelBufferCGImageCompatibilityKey as String: true, kCVPixelBufferCGBitmapContextCompatibilityKey as String: true]
         var pxBuffer: CVPixelBuffer? = nil
         let width = cgImage.width
         let height = cgImage.height
-        CVPixelBufferCreate(kCFAllocatorDefault, width, height, kCVPixelFormatType_32ARGB, options as CFDictionary?, &pxBuffer)
+        let status = CVPixelBufferCreate(kCFAllocatorDefault, width, height, kCVPixelFormatType_32ARGB, options as CFDictionary?, &pxBuffer)
+        if status != kCVReturnSuccess {
+            return nil
+        }
         CVPixelBufferLockBaseAddress(pxBuffer!, CVPixelBufferLockFlags(rawValue: 0))
         let pxData = CVPixelBufferGetBaseAddress(pxBuffer!)!
         let bitsPerComponent: size_t = 8
@@ -237,10 +240,10 @@ extension VideoWriter {
         let context: CGContext = CGContext(data: pxData, width: width, height: height, bitsPerComponent: bitsPerComponent, bytesPerRow: bytePerRow, space: rgbColorSpace, bitmapInfo: CGImageAlphaInfo.noneSkipFirst.rawValue)!
         context.draw(cgImage, in: CGRect(x:0, y:0, width: CGFloat(width), height: CGFloat(height)))
         CVPixelBufferUnlockBaseAddress(pxBuffer!, CVPixelBufferLockFlags(rawValue: 0))
-        return pxBuffer!
+        return pxBuffer
     }
     
-    private func composeVideo(buffer: CMSampleBuffer) -> CVPixelBuffer {
+    private func composeVideo(buffer: CMSampleBuffer) -> CVPixelBuffer? {
         let image = uiImageFromSampleBuffer(buffer: buffer)
         let width = image.size.width
         let height = image.size.height
@@ -284,6 +287,8 @@ extension VideoWriter : AVCaptureVideoDataOutputSampleBufferDelegate, AVCaptureA
             return
         }
         
+        let isVideo = output is AVCaptureVideoDataOutput
+
         if frameNumber == 0 {
             startTime = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
         }
@@ -291,15 +296,15 @@ extension VideoWriter : AVCaptureVideoDataOutputSampleBufferDelegate, AVCaptureA
         let frameTime = CMTimeSubtract(timestamp, startTime)
         endTime = frameTime
 
-        let isVideo = output is AVCaptureVideoDataOutput
         
         if isVideo {
             if videoAssetInput.isReadyForMoreMediaData {
-                let pxBuffer:CVPixelBuffer = composeVideo(buffer: sampleBuffer)
+                if let pxBuffer:CVPixelBuffer = composeVideo(buffer: sampleBuffer) {
                 //guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
                 //pixelBuffer.append(imageBuffer, withPresentationTime: CMTimeMake(frameNumber, config.frameRate))
                 self.pixelBuffer.append(pxBuffer, withPresentationTime: frameTime)
                 //pixelBuffer.append(pxBuffer, withPresentationTime: CMTimeMake(frameNumber, config.frameRate))
+                }
                 frameNumber += 1
             }
         } else {

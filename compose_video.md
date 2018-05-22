@@ -4,7 +4,7 @@ AVCaptureVideoDataOutputとAVAssetWriterを使ったビデオキャプチャー�
 
 This code snippet describes how to capture video using AVCaptureVideoDataOutpput and AVAssetWriter and how to compose video frame.
 
-### インスタンス変数
+#### インスタンス変数
 ~~~
 var captureSession: AVCaptureSession()
 var camera: AVCaptureDevice!
@@ -20,7 +20,7 @@ var frameNumber: Int64 = 0
 ...
 ...
 ~~~
-### ビデオキャプチャー用のAVCaptureSessionを構成する
+#### ビデオキャプチャー用のAVCaptureSessionを構成する
 
 ~~~
 // 入力の設定
@@ -133,7 +133,7 @@ captureSession.startRunning()
 
 ~~~
 
-### キャプチャー開始
+#### キャプチャー開始
 
 ~~~
 func startCapture() {
@@ -171,7 +171,7 @@ func startCapture() {
 }
 ~~~
 
-### キャプチャー停止
+#### キャプチャー停止
 ~~~
 func stopCapture() {
   videoAssetInput.markAsFinished()
@@ -185,7 +185,7 @@ func stopCapture() {
 }
 ~~~
 
-### ビデオフレームデータを処理するデリゲートメソッド
+#### ビデオフレームデータを処理するデリゲートメソッド
 ~~~
 func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
   // キャプチャーしたデータが来なかったら処理しない
@@ -208,9 +208,10 @@ func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBu
   if isVideo {
     if videoAssetInput.isReadyForMoreMediaData {
       // フレーム画像の合成
-      let pxBuffer:CVPixelBuffer = composeVideo(buffer: sampleBuffer)
-      // アセットに書き出す
-      pixelBuffer.append(pxBuffer, withPresentationTime: frameTime)
+      if let pxBuffer:CVPixelBuffer = composeVideo(buffer: sampleBuffer) {
+        // アセットに書き出す
+        pixelBuffer.append(pxBuffer, withPresentationTime: frameTime)
+      }
       frameNumber += 1
     }
   }
@@ -218,11 +219,11 @@ func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBu
 }
 ~~~
 
-### フレーム画像の合成 （映像に時刻を合成する）
+#### フレーム画像の合成 （映像に時刻を合成する）
 
 ~~~
 // フレーム合成メソッド
-private func composeVideo(buffer: CMSampleBuffer) -> CVPixelBuffer {
+private func composeVideo(buffer: CMSampleBuffer) -> CVPixelBuffer? {
   // CMSampleBufferをUIImageに変換
   let image = uiImageFromSampleBuffer(buffer: buffer)
   // フレーム画像の大きさ
@@ -291,13 +292,16 @@ private func uiImageFromSampleBuffer(buffer: CMSampleBuffer) -> UIImage {
 }
 
 // UIImageをCVPixelBufferに変換
-private func pixelBufferFromUIImage(image: UIImage) -> CVPixelBuffer {
+private func pixelBufferFromUIImage(image: UIImage) -> CVPixelBuffer? {
   let cgImage = image.cgImage!
   let options = [kCVPixelBufferCGImageCompatibilityKey as String: true, kCVPixelBufferCGBitmapContextCompatibilityKey as String: true]
   var pxBuffer: CVPixelBuffer? = nil
   let width = cgImage.width
   let height = cgImage.height
-  CVPixelBufferCreate(kCFAllocatorDefault, width, height, kCVPixelFormatType_32ARGB, options as CFDictionary?, &pxBuffer)
+  let status = CVPixelBufferCreate(kCFAllocatorDefault, width, height, kCVPixelFormatType_32ARGB, options as CFDictionary?, &pxBuffer)
+  if status != CVReturnSuccess {
+    return nil
+  }
   CVPixelBufferLockBaseAddress(pxBuffer!, CVPixelBufferLockFlags(rawValue: 0))
   let pxData = CVPixelBufferGetBaseAddress(pxBuffer!)!
   let bitsPerComponent: size_t = 8
@@ -307,7 +311,7 @@ private func pixelBufferFromUIImage(image: UIImage) -> CVPixelBuffer {
   context.draw(cgImage, in: CGRect(x:0, y:0, width: CGFloat(width), height: CGFloat(height)))
   CVPixelBufferUnlockBaseAddress(pxBuffer!, CVPixelBufferLockFlags(rawValue: 0))
 
-  return pxBuffer!
+  return pxBuffer
 }
 
 ~~~

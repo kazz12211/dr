@@ -87,7 +87,7 @@ class DriveRecorder : NSObject {
             do {
                 try device.lockForConfiguration()
                 whiteBalance(.continuousAutoWhiteBalance)
-                focus(.continuousAutoFocus)
+                focus(.autoFocus)
                 exposure(.continuousAutoExposure)
                 device.unlockForConfiguration()
             } catch {
@@ -184,6 +184,8 @@ extension DriveRecorder {
             try videoDevice.lockForConfiguration()
             
             let frameRateRanges =  videoDevice.activeFormat.videoSupportedFrameRateRanges
+            print("\(frameRateRanges)");
+            
             if let frameRate = frameRateRanges.first {
                 if Config.default.frameRate < Int32(frameRate.minFrameRate) || Config.default.frameRate > Int32(frameRate.maxFrameRate) {
                     Config.default.frameRate = Constants.DefaultFrameRate
@@ -199,12 +201,11 @@ extension DriveRecorder {
             
             whiteBalance(.continuousAutoWhiteBalance)
             
-            focus(.continuousAutoFocus)
+            focus(.autoFocus)
             
             exposure(.continuousAutoExposure)
 
             videoDevice.unlockForConfiguration()
-            
 
             completionHandler(nil)
         } catch {
