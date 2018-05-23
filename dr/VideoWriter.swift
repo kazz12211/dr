@@ -146,9 +146,9 @@ class VideoWriter : NSObject {
                 audioAssetInput.markAsFinished()
             }
             self.recordingInProgress = false
+            while(!possiblyEnableToEndWriteSession) {}
             assetWriter.endSession(atSourceTime: endTime)
             // See Discussion of appendPixelBuffer:withPresentationTime: Apple API Doc.
-            while(!possiblyEnableToEndWriteSession) {}
             assetWriter.finishWriting {
                 //self.videoAssetInput = nil
                 //self.audioAssetInput = nil
@@ -294,13 +294,12 @@ extension VideoWriter : AVCaptureVideoDataOutputSampleBufferDelegate, AVCaptureA
         endTime = frameTime
 
         
+        possiblyEnableToEndWriteSession = true
         if isVideo {
             if videoAssetInput.isReadyForMoreMediaData {
                 if let composedImage = composeVideo(buffer: sampleBuffer) {
                     possiblyEnableToEndWriteSession = pixelBufferAdaptor.append(uiImage: composedImage, withPresentationTime: frameTime)
                     frameNumber += 1
-                } else {
-                    possiblyEnableToEndWriteSession = true
                 }
             }
         } else {
