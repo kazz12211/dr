@@ -26,8 +26,7 @@ class VideoWriter : NSObject {
     var startTime: CMTime!
     var endTime: CMTime!
     var videoQueue: DispatchQueue!
-    //var audioQueue: DispatchQueue!
-    var successWrite: Bool = false
+    var possiblyEnableToEndWriteSession: Bool = false
 
     init(session: AVCaptureSession) {
         super.init()
@@ -66,12 +65,6 @@ class VideoWriter : NSObject {
     private func setupAudioOutput() {
         if Config.default.recordAudio {
             audioOutput = AVCaptureAudioDataOutput()
-            /*
-            if audioQueue == nil {
-                audioQueue = DispatchQueue(label: "AudioQueue")
-            }
-            audioOutput.setSampleBufferDelegate(self, queue: audioQueue)
-             */
             audioOutput.setSampleBufferDelegate(self, queue: videoQueue)
             if captureSession.canAddOutput(audioOutput) {
                 captureSession.addOutput(audioOutput)
@@ -154,8 +147,8 @@ class VideoWriter : NSObject {
             }
             self.recordingInProgress = false
             assetWriter.endSession(atSourceTime: endTime)
-            // "Discussion" of appendPixelBuffer:withPresentationTime:
-            while(!successWrite) {}
+            // See Discussion of appendPixelBuffer:withPresentationTime: Apple API Doc.
+            while(!possiblyEnableToEndWriteSession) {}
             assetWriter.finishWriting {
                 //self.videoAssetInput = nil
                 //self.audioAssetInput = nil
@@ -200,14 +193,19 @@ extension VideoWriter : AVCapturePhotoCaptureDelegate {
 // ビデオ保存
 extension VideoWriter {
    
-    private func uiImageFromSampleBuffer(buffer: CMSampleBuffer) -> UIImage {
-        let imageBuffer = CMSampleBufferGetImageBuffer(buffer)!
+    private func uiImageFromSampleBuffer(buffer: CMSampleBuffer) -> UIImage? {
+        guard let imageBuffer = CMSampleBufferGetImageBuffer(buffer) else {
+            return nil
+        }
         
         // イメージバッファのロック
         CVPixelBufferLockBaseAddress(imageBuffer, CVPixelBufferLockFlags(rawValue: 0))
         
         // 画像情報を取得
-        let base = CVPixelBufferGetBaseAddressOfPlane(imageBuffer, 0)!
+        guard let base = CVPixelBufferGetBaseAddressOfPlane(imageBuffer, 0) else {
+            CVPixelBufferUnlockBaseAddress(imageBuffer, CVPixelBufferLockFlags(rawValue: 0))
+            return nil
+        }
         let bytesPerRow = UInt(CVPixelBufferGetBytesPerRow(imageBuffer))
         let width = UInt(CVPixelBufferGetWidth(imageBuffer))
         let height = UInt(CVPixelBufferGetHeight(imageBuffer))
@@ -216,10 +214,23 @@ extension VideoWriter {
         let colorSpace = CGColorSpaceCreateDeviceRGB()
         let bitsPerCompornent = 8
         let bitmapInfo = CGBitmapInfo(rawValue: (CGBitmapInfo.byteOrder32Little.rawValue | CGImageAlphaInfo.premultipliedFirst.rawValue) as UInt32)
-        let newContext = CGContext(data: base, width: Int(width), height: Int(height), bitsPerComponent: Int(bitsPerCompornent), bytesPerRow: Int(bytesPerRow), space: colorSpace, bitmapInfo: bitmapInfo.rawValue)! as CGContext
+        guard let newContext = CGContext(
+            data: base,
+            width: Int(width),
+            height: Int(height),
+            bitsPerComponent: Int(bitsPerCompornent),
+            bytesPerRow: Int(bytesPerRow),
+            space: colorSpace,
+            bitmapInfo: bitmapInfo.rawValue) else {
+            CVPixelBufferUnlockBaseAddress(imageBuffer, CVPixelBufferLockFlags(rawValue: 0))
+            return nil
+        }
         
         // 画像作成
-        let imageRef = newContext.makeImage()!
+        guard let imageRef = newContext.makeImage() else {
+            CVPixelBufferUnlockBaseAddress(imageBuffer, CVPixelBufferLockFlags(rawValue: 0))
+            return nil
+        }
         let image = UIImage(cgImage: imageRef, scale: 1.0, orientation: UIImageOrientation.up)
         
         // イメージバッファのアンロック
@@ -228,7 +239,9 @@ extension VideoWriter {
     }
     
     private func composeVideo(buffer: CMSampleBuffer) -> UIImage? {
-        let image = uiImageFromSampleBuffer(buffer: buffer)
+        guard let image = uiImageFromSampleBuffer(buffer: buffer) else {
+            return nil
+        }
         let width = image.size.width
         let height = image.size.height
         let font = UIFont.systemFont(ofSize: 14.0)
@@ -284,12 +297,14 @@ extension VideoWriter : AVCaptureVideoDataOutputSampleBufferDelegate, AVCaptureA
         if isVideo {
             if videoAssetInput.isReadyForMoreMediaData {
                 if let composedImage = composeVideo(buffer: sampleBuffer) {
-                    successWrite = pixelBufferAdaptor.append(uiImage: composedImage, withPresentationTime: frameTime)
+                    possiblyEnableToEndWriteSession = pixelBufferAdaptor.append(uiImage: composedImage, withPresentationTime: frameTime)
+                    frameNumber += 1
+                } else {
+                    possiblyEnableToEndWriteSession = true
                 }
-                frameNumber += 1
             }
         } else {
-            if audioAssetInput.isReadyForMoreMediaData && frameNumber > 0{
+            if audioAssetInput.isReadyForMoreMediaData && frameNumber > 0 {
                 self.audioAssetInput.append(sampleBuffer)
             }
         }
