@@ -19,7 +19,7 @@ class VideoWriter : NSObject {
     var assetWriter: AVAssetWriter!
     var videoAssetInput: AVAssetWriterInput!
     var audioAssetInput: AVAssetWriterInput!
-    var pixelBuffer: AVAssetWriterInputPixelBufferAdaptor!
+    var pixelBufferAdaptor: AVAssetWriterInputPixelBufferAdaptor!
     var frameNumber: Int64 = 0
     var captureSession: AVCaptureSession!
     var recordingInProgress: Bool = false
@@ -105,7 +105,7 @@ class VideoWriter : NSObject {
         ] as [String: Any]
         
         videoAssetInput = AVAssetWriterInput(mediaType: .video, outputSettings: videoInputSettings)
-        pixelBuffer = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: videoAssetInput, sourcePixelBufferAttributes: [kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_32BGRA)])
+        pixelBufferAdaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: videoAssetInput, sourcePixelBufferAttributes: [kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_32BGRA)])
         
         do {
             try assetWriter = AVAssetWriter(outputURL: url, fileType: .mp4)
@@ -227,28 +227,7 @@ extension VideoWriter {
         return image
     }
     
-    private func pixelBufferFromUIImage(image: UIImage) -> CVPixelBuffer? {
-        let cgImage = image.cgImage!
-        let options = [kCVPixelBufferCGImageCompatibilityKey as String: true, kCVPixelBufferCGBitmapContextCompatibilityKey as String: true]
-        var pxBuffer: CVPixelBuffer? = nil
-        let width = cgImage.width
-        let height = cgImage.height
-        let status = CVPixelBufferCreate(kCFAllocatorDefault, width, height, kCVPixelFormatType_32ARGB, options as CFDictionary?, &pxBuffer)
-        if status != kCVReturnSuccess {
-            return nil
-        }
-        CVPixelBufferLockBaseAddress(pxBuffer!, CVPixelBufferLockFlags(rawValue: 0))
-        let pxData = CVPixelBufferGetBaseAddress(pxBuffer!)!
-        let bitsPerComponent: size_t = 8
-        let bytePerRow: size_t = 4 * width
-        let rgbColorSpace: CGColorSpace = CGColorSpaceCreateDeviceRGB()
-        let context: CGContext = CGContext(data: pxData, width: width, height: height, bitsPerComponent: bitsPerComponent, bytesPerRow: bytePerRow, space: rgbColorSpace, bitmapInfo: CGImageAlphaInfo.noneSkipFirst.rawValue)!
-        context.draw(cgImage, in: CGRect(x:0, y:0, width: CGFloat(width), height: CGFloat(height)))
-        CVPixelBufferUnlockBaseAddress(pxBuffer!, CVPixelBufferLockFlags(rawValue: 0))
-        return pxBuffer
-    }
-    
-    private func composeVideo(buffer: CMSampleBuffer) -> CVPixelBuffer? {
+    private func composeVideo(buffer: CMSampleBuffer) -> UIImage? {
         let image = uiImageFromSampleBuffer(buffer: buffer)
         let width = image.size.width
         let height = image.size.height
@@ -280,7 +259,7 @@ extension VideoWriter {
         let composedImage = UIGraphicsGetImageFromCurrentImageContext()
         UIGraphicsEndImageContext()
         
-        return pixelBufferFromUIImage(image: composedImage!)
+        return composedImage
     }
 
 }
@@ -304,11 +283,8 @@ extension VideoWriter : AVCaptureVideoDataOutputSampleBufferDelegate, AVCaptureA
         
         if isVideo {
             if videoAssetInput.isReadyForMoreMediaData {
-                if let pxBuffer:CVPixelBuffer = composeVideo(buffer: sampleBuffer) {
-                //guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
-                //pixelBuffer.append(imageBuffer, withPresentationTime: CMTimeMake(frameNumber, config.frameRate))
-                    self.successWrite = self.pixelBuffer.append(pxBuffer, withPresentationTime: frameTime)
-                //pixelBuffer.append(pxBuffer, withPresentationTime: CMTimeMake(frameNumber, config.frameRate))
+                if let composedImage = composeVideo(buffer: sampleBuffer) {
+                    successWrite = pixelBufferAdaptor.append(uiImage: composedImage, withPresentationTime: frameTime)
                 }
                 frameNumber += 1
             }

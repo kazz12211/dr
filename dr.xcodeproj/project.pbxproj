@@ -24,6 +24,7 @@
 		F83A6CCD20A40C2A00097F14 /* VideoWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F83A6CCC20A40C2A00097F14 /* VideoWriter.swift */; };
 		F83A6CCF20A4111F00097F14 /* MediaPlayer.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F83A6CCE20A4111F00097F14 /* MediaPlayer.framework */; };
 		F841004320B25F4800DE2A60 /* DriveRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = F841004220B25F4800DE2A60 /* DriveRecorder.swift */; };
+		F84D830F20B533B0005A38B4 /* AVAssetWriterInputPixelBufferAdaptorAdditions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F84D830E20B533B0005A38B4 /* AVAssetWriterInputPixelBufferAdaptorAdditions.swift */; };
 		F8569D9E20A1E4C6001444AD /* PlayerViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8569D9D20A1E4C6001444AD /* PlayerViewController.swift */; };
 		F8569DA020A1E9CD001444AD /* FilenameUtil.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8569D9F20A1E9CD001444AD /* FilenameUtil.swift */; };
 		F8569DA220A1EFF0001444AD /* PlaylistCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8569DA120A1EFF0001444AD /* PlaylistCell.swift */; };
@@ -51,6 +52,7 @@
 		F83A6CCC20A40C2A00097F14 /* VideoWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoWriter.swift; sourceTree = "<group>"; };
 		F83A6CCE20A4111F00097F14 /* MediaPlayer.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MediaPlayer.framework; path = System/Library/Frameworks/MediaPlayer.framework; sourceTree = SDKROOT; };
 		F841004220B25F4800DE2A60 /* DriveRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriveRecorder.swift; sourceTree = "<group>"; };
+		F84D830E20B533B0005A38B4 /* AVAssetWriterInputPixelBufferAdaptorAdditions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AVAssetWriterInputPixelBufferAdaptorAdditions.swift; sourceTree = "<group>"; };
 		F8569D9D20A1E4C6001444AD /* PlayerViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerViewController.swift; sourceTree = "<group>"; };
 		F8569D9F20A1E9CD001444AD /* FilenameUtil.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilenameUtil.swift; sourceTree = "<group>"; };
 		F8569DA120A1EFF0001444AD /* PlaylistCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistCell.swift; sourceTree = "<group>"; };
@@ -108,6 +110,7 @@
 				F8569DA120A1EFF0001444AD /* PlaylistCell.swift */,
 				F83A6CCC20A40C2A00097F14 /* VideoWriter.swift */,
 				F841004220B25F4800DE2A60 /* DriveRecorder.swift */,
+				F84D830E20B533B0005A38B4 /* AVAssetWriterInputPixelBufferAdaptorAdditions.swift */,
 			);
 			path = dr;
 			sourceTree = "<group>";
@@ -201,6 +204,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F84D830F20B533B0005A38B4 /* AVAssetWriterInputPixelBufferAdaptorAdditions.swift in Sources */,
 				F83A6CCD20A40C2A00097F14 /* VideoWriter.swift in Sources */,
 				F80479CD20A13576005512ED /* DriveInfo.swift in Sources */,
 				F80479CF20A136B4005512ED /* Config.swift in Sources */,
