@@ -20,6 +20,7 @@ class DriveRecorder : NSObject {
     var videoWriter: VideoWriter!
     var authorized: Bool = false
     var adjustingExposure: Bool = false
+    //var timer: Timer!
     
     override init() {
         super.init()
@@ -68,10 +69,20 @@ class DriveRecorder : NSObject {
             }
         }
         recordingInProgress = videoWriter.start()
+        /*
+        timer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true, block: { (tm) in
+            if self.recordingInProgress {
+                self.videoWriter.stop()
+                self.videoWriter.start()
+            }
+        })
+         */
         completionHandler()
     }
     
     func stopRecording(_ completionHandler: () -> Void) {
+        //timer.invalidate()
+        //timer = nil
         videoWriter.stop()
         recordingInProgress = false
         completionHandler()
@@ -184,7 +195,6 @@ extension DriveRecorder {
             try videoDevice.lockForConfiguration()
             
             let frameRateRanges =  videoDevice.activeFormat.videoSupportedFrameRateRanges
-            print("\(frameRateRanges)");
             
             if let frameRate = frameRateRanges.first {
                 if Config.default.frameRate < Int32(frameRate.minFrameRate) || Config.default.frameRate > Int32(frameRate.maxFrameRate) {

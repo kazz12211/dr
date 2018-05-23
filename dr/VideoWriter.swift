@@ -26,7 +26,8 @@ class VideoWriter : NSObject {
     var startTime: CMTime!
     var endTime: CMTime!
     var videoQueue: DispatchQueue!
-    var audioQueue: DispatchQueue!
+    //var audioQueue: DispatchQueue!
+    var successWrite: Bool = false
 
     init(session: AVCaptureSession) {
         super.init()
@@ -55,9 +56,7 @@ class VideoWriter : NSObject {
        }
         videoOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey: Int(kCVPixelFormatType_32BGRA)] as [String : Any]
         videoOutput.alwaysDiscardsLateVideoFrames = true
-        if videoQueue == nil {
-            videoQueue = DispatchQueue(label: "VideoQueue")
-        }
+        videoQueue = DispatchQueue(label: "VideoQueue")
         videoOutput.setSampleBufferDelegate(self, queue: videoQueue)
         if captureSession.canAddOutput(videoOutput) {
             captureSession.addOutput(videoOutput)
@@ -67,10 +66,13 @@ class VideoWriter : NSObject {
     private func setupAudioOutput() {
         if Config.default.recordAudio {
             audioOutput = AVCaptureAudioDataOutput()
+            /*
             if audioQueue == nil {
                 audioQueue = DispatchQueue(label: "AudioQueue")
             }
             audioOutput.setSampleBufferDelegate(self, queue: audioQueue)
+             */
+            audioOutput.setSampleBufferDelegate(self, queue: videoQueue)
             if captureSession.canAddOutput(audioOutput) {
                 captureSession.addOutput(audioOutput)
             }
@@ -105,8 +107,6 @@ class VideoWriter : NSObject {
         videoAssetInput = AVAssetWriterInput(mediaType: .video, outputSettings: videoInputSettings)
         pixelBuffer = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: videoAssetInput, sourcePixelBufferAttributes: [kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_32BGRA)])
         
-        frameNumber = 0
-        
         do {
             try assetWriter = AVAssetWriter(outputURL: url, fileType: .mp4)
             videoAssetInput.expectsMediaDataInRealTime = true
@@ -126,19 +126,22 @@ class VideoWriter : NSObject {
                 audioAssetInput = AVAssetWriterInput(mediaType: .audio, outputSettings: audioInputSettings)
                 audioAssetInput.expectsMediaDataInRealTime = true
                 assetWriter.add(audioAssetInput)
+            } else {
+                audioAssetInput = nil
             }
+            frameNumber = 0
             endTime = kCMTimeZero
             if assetWriter.startWriting() {
-                assetWriter.startSession(atSourceTime: kCMTimeZero)
                 recordingInProgress = true
+                assetWriter.startSession(atSourceTime: kCMTimeZero)
             } else {
                 recordingInProgress = false
             }
-            return recordingInProgress
         } catch {
             print("could not start video recording ", error)
-            return false
+            recordingInProgress = false
         }
+        return recordingInProgress
     }
     
     func stop() {
@@ -151,9 +154,11 @@ class VideoWriter : NSObject {
             }
             self.recordingInProgress = false
             assetWriter.endSession(atSourceTime: endTime)
+            // "Discussion" of appendPixelBuffer:withPresentationTime:
+            while(!successWrite) {}
             assetWriter.finishWriting {
-                self.videoAssetInput = nil
-                self.audioAssetInput = nil
+                //self.videoAssetInput = nil
+                //self.audioAssetInput = nil
             }
         }
     }
@@ -302,13 +307,13 @@ extension VideoWriter : AVCaptureVideoDataOutputSampleBufferDelegate, AVCaptureA
                 if let pxBuffer:CVPixelBuffer = composeVideo(buffer: sampleBuffer) {
                 //guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
                 //pixelBuffer.append(imageBuffer, withPresentationTime: CMTimeMake(frameNumber, config.frameRate))
-                self.pixelBuffer.append(pxBuffer, withPresentationTime: frameTime)
+                    self.successWrite = self.pixelBuffer.append(pxBuffer, withPresentationTime: frameTime)
                 //pixelBuffer.append(pxBuffer, withPresentationTime: CMTimeMake(frameNumber, config.frameRate))
                 }
                 frameNumber += 1
             }
         } else {
-            if audioAssetInput.isReadyForMoreMediaData {
+            if audioAssetInput.isReadyForMoreMediaData && frameNumber > 0{
                 self.audioAssetInput.append(sampleBuffer)
             }
         }
