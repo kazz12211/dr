@@ -7,6 +7,7 @@
 //  MIT License
 //
 
+import Foundation
 import UIKit
 import AVFoundation
 import Photos
@@ -27,7 +28,9 @@ class VideoWriter : NSObject {
     var endTime: CMTime!
     var videoQueue: DispatchQueue!
     var possiblyEnableToEndWriteSession: Bool = false
-
+    var filePath: String!
+    var fileURL: URL!
+    
     init(session: AVCaptureSession) {
         super.init()
         
@@ -38,6 +41,21 @@ class VideoWriter : NSObject {
         setupAudioOutput()
         setupImageOutput()
         captureSession.commitConfiguration()
+    }
+    
+    func reset() {
+        if videoOutput != nil {
+            captureSession.removeOutput(videoOutput)
+        }
+        if audioOutput != nil {
+            captureSession.removeOutput(audioOutput)
+        }
+        if imageOutput != nil {
+            captureSession.removeOutput(imageOutput)
+        }
+        setupVideoOutput()
+        setupAudioOutput()
+        setupImageOutput()
     }
     
     private func setupVideoOutput() {
@@ -86,8 +104,8 @@ class VideoWriter : NSObject {
         if recordingInProgress { return true }
         
         let documentPath = NSHomeDirectory() + "/Documents/"
-        let filePath = documentPath + Date().filenameFromDate() + ".mp4"
-        let url = URL(fileURLWithPath: filePath)
+        filePath = documentPath + Date().filenameFromDate() + ".mp4"
+        fileURL = URL(fileURLWithPath: filePath)
 
         let width = Config.default.videoQuality == Constants.VideoQualityHigh ? 1920 : Config.default.videoQuality == Constants.VideoQualityMedium ? 1280 : 640
         let height = Config.default.videoQuality == Constants.VideoQualityHigh ? 1080 : Config.default.videoQuality == Constants.VideoQualityMedium ? 720 : 480
@@ -101,7 +119,7 @@ class VideoWriter : NSObject {
         pixelBufferAdaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: videoAssetInput, sourcePixelBufferAttributes: [kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_32BGRA)])
         
         do {
-            try assetWriter = AVAssetWriter(outputURL: url, fileType: .mp4)
+            try assetWriter = AVAssetWriter(outputURL: fileURL, fileType: .mp4)
             videoAssetInput.expectsMediaDataInRealTime = true
             assetWriter.add(videoAssetInput)
             if Config.default.recordAudio {
@@ -119,7 +137,7 @@ class VideoWriter : NSObject {
                 ] as [String: Any]
                  */
                 let audioInputSettings = audioOutput.recommendedAudioSettingsForAssetWriter(writingTo: .mp4) as! [String: Any]
-                print("\(audioInputSettings)")
+                // ["AVNumberOfChannelsKey": 1, "AVEncoderBitRatePerChannelKey": 64000, "AVFormatIDKey": 1633772320, "AVSampleRateKey": 44100]
                 audioAssetInput = AVAssetWriterInput(mediaType: .audio, outputSettings: audioInputSettings)
                 audioAssetInput.expectsMediaDataInRealTime = true
                 assetWriter.add(audioAssetInput)
@@ -156,10 +174,31 @@ class VideoWriter : NSObject {
             assetWriter.finishWriting {
                 //self.videoAssetInput = nil
                 //self.audioAssetInput = nil
+                /*
+                if moveToPhotoAlbum {
+                    self.moveVideoToPhotoAlbum()
+                }
+                 */
             }
         }
     }
 
+    func moveVideoToPhotoAlbum() {
+        if UIVideoAtPathIsCompatibleWithSavedPhotosAlbum(filePath) {
+            //UISaveVideoAtPathToSavedPhotosAlbum(filePath, self, #selector(videoDidFinishSavingWithError(error:contextInfo:)), nil)
+            PHPhotoLibrary.shared().performChanges({
+                PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: self.fileURL)
+            }) { (saved, error) in
+                if saved {
+                    do {
+                        try FileManager.default.removeItem(at: self.fileURL)
+                    } catch {
+                        print("could not remove video file at path \(self.filePath)")
+                    }
+                }
+            }
+        }
+    }
     
 }
 
@@ -293,6 +332,7 @@ extension VideoWriter : AVCaptureVideoDataOutputSampleBufferDelegate, AVCaptureA
         if frameNumber == 0 {
             startTime = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
         }
+
         let timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
         let frameTime = CMTimeSubtract(timestamp, startTime)
         endTime = frameTime

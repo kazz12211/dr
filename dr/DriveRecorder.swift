@@ -65,6 +65,7 @@ class DriveRecorder : NSObject {
         removeMicrophone()
         addCamera()
         addMicrophone()
+        videoWriter.reset()
         captureSession.commitConfiguration()
     }
     
@@ -76,7 +77,7 @@ class DriveRecorder : NSObject {
         }
         recordingInProgress = videoWriter.start()
         /*
-        timer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true, block: { (tm) in
+        timer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true, block: { (tm) in
             if self.recordingInProgress {
                 self.videoWriter.stop()
                 self.videoWriter.start()
@@ -87,8 +88,12 @@ class DriveRecorder : NSObject {
     }
     
     func stopRecording(_ completionHandler: () -> Void) {
-        //timer.invalidate()
-        //timer = nil
+        /*
+        if timer != nil {
+            timer.invalidate()
+            timer = nil
+        }
+        */
         videoWriter.stop()
         recordingInProgress = false
         completionHandler()
