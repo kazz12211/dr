@@ -109,6 +109,7 @@ class VideoWriter : NSObject {
                 bzero(&acl, MemoryLayout<AudioChannelLayout>.size)
                 acl.mChannelLayoutTag = kAudioChannelLayoutTag_Mono
                 
+                /*
                 let audioInputSettings = [
                     AVFormatIDKey: kAudioFormatMPEG4AAC,
                     AVNumberOfChannelsKey: 1,
@@ -116,6 +117,9 @@ class VideoWriter : NSObject {
                     AVEncoderBitRateKey: 64000,
                     AVChannelLayoutKey: Data(bytes: &acl, count: MemoryLayout<AudioChannelLayout>.size)
                 ] as [String: Any]
+                 */
+                let audioInputSettings = audioOutput.recommendedAudioSettingsForAssetWriter(writingTo: .mp4) as! [String: Any]
+                print("\(audioInputSettings)")
                 audioAssetInput = AVAssetWriterInput(mediaType: .audio, outputSettings: audioInputSettings)
                 audioAssetInput.expectsMediaDataInRealTime = true
                 assetWriter.add(audioAssetInput)
@@ -146,9 +150,9 @@ class VideoWriter : NSObject {
                 audioAssetInput.markAsFinished()
             }
             self.recordingInProgress = false
+            // See Discussion of appendPixelBuffer:withPresentationTime: Apple API Doc.
             while(!possiblyEnableToEndWriteSession) {}
             assetWriter.endSession(atSourceTime: endTime)
-            // See Discussion of appendPixelBuffer:withPresentationTime: Apple API Doc.
             assetWriter.finishWriting {
                 //self.videoAssetInput = nil
                 //self.audioAssetInput = nil

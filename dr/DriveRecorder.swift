@@ -29,9 +29,15 @@ class DriveRecorder : NSObject {
         captureSession.sessionPreset = Config.default.videoQuality
         
         self.checkCameraAuthorization { (authorized) in
-            self.checkPhotoLibraryAuthorization({ (authorized) in
-                self.authorized = authorized
-            })
+            if authorized {
+                self.checkMicrophoneAuthorization({ (authorized) in
+                    if authorized {
+                        self.checkPhotoLibraryAuthorization({ (authorized) in
+                            self.authorized = authorized
+                        })
+                    }
+                })
+            }
         }
     }
     
@@ -288,6 +294,19 @@ extension DriveRecorder {
         case .restricted:
             // The user doesn't have the authority to request access e.g. parental restriction.
             completionHandler(false)
+        }
+    }
+    
+    func checkMicrophoneAuthorization(_ completionHandler: @escaping ((_ authorized: Bool) -> Void)) {
+        switch AVAudioSession.sharedInstance().recordPermission() {
+        case .granted:
+            completionHandler(true)
+        case .denied:
+            completionHandler(false)
+        case .undetermined:
+            AVAudioSession.sharedInstance().requestRecordPermission { (granted) in
+                completionHandler(granted)
+            }
         }
     }
     
