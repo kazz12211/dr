@@ -9,6 +9,7 @@
 
 import UIKit
 import AVFoundation
+import Photos
 
 class PlaylistViewController: UIViewController {
 
@@ -88,6 +89,10 @@ extension PlaylistViewController: UITableViewDelegate {
         return cell
     }
     
+    func tableView(_ tableView: UITableView, editingStyleForRowAt indexPath: IndexPath) -> UITableViewCellEditingStyle {
+        return UITableViewCellEditingStyle.none
+    }
+
     func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
         let removeAction = UIContextualAction(style: .normal, title: "削除") { (action, view, success) in
             let url = self.videoFiles[indexPath.row]
@@ -104,5 +109,37 @@ extension PlaylistViewController: UITableViewDelegate {
         removeAction.backgroundColor = .red
         return UISwipeActionsConfiguration(actions: [removeAction])
     }
+    
+    func tableView(_ tableView: UITableView, leadingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
+        let moveVideoAction = UIContextualAction(style: .normal, title: "Move", handler: {(action: UIContextualAction, view: UIView, success : (Bool) -> Void) in
+            self.moveVideoToPhotoAlbum(at: indexPath)
+            success(false)
+        })
+        moveVideoAction.image = UIImage(named: "icon_folder_download")
+        moveVideoAction.backgroundColor = UIColor.blue
+        return UISwipeActionsConfiguration(actions: [moveVideoAction])
+    }
+    
+    func moveVideoToPhotoAlbum(at indexPath: IndexPath) {
+        let fileURL = videoFiles[indexPath.row]
+        if UIVideoAtPathIsCompatibleWithSavedPhotosAlbum(fileURL.path) {
+            PHPhotoLibrary.shared().performChanges({
+                PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: fileURL)
+            }) { (saved, error) in
+                if saved {
+                    do {
+                        try FileManager.default.removeItem(at: fileURL)
+                        self.videoFiles.remove(at: indexPath.row)
+                        DispatchQueue.main.async {
+                            self.tableView.deleteRows(at: [indexPath], with: .automatic)
+                        }
+                    } catch {
+                        print("could not remove video file at path \(fileURL.path)")
+                    }
+                }
+            }
+        }
+    }
+
 }
 
