@@ -109,7 +109,7 @@ class DriveRecorder : NSObject {
             do {
                 try device.lockForConfiguration()
                 whiteBalance(.continuousAutoWhiteBalance)
-                focus(.autoFocus)
+                focus(.continuousAutoFocus)
                 exposure(.continuousAutoExposure)
                 device.unlockForConfiguration()
             } catch {
@@ -222,7 +222,7 @@ extension DriveRecorder {
             
             whiteBalance(.continuousAutoWhiteBalance)
             
-            focus(.autoFocus)
+            focus(.continuousAutoFocus)
             
             exposure(.continuousAutoExposure)
 
